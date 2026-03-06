@@ -49,7 +49,7 @@ export default function LoginPage() {
           <h1 className="text-2xl font-medium text-blue-900 uppercase tracking-tighter">
             Acesso ao Cronograma
           </h1>
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">
+          <p className="text-3xl font-bold text-blue-600 uppercase tracking-tighter mt-1">
             Projeto Ser GCM
           </p>
         </div>
