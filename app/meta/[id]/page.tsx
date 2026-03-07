@@ -18,6 +18,8 @@ interface Task {
   total_questions: number;
   correct_answers: number;
   completed: boolean;
+  link_questoes?: string;
+  link_material?: string;
 }
 
 export default function MetaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -101,7 +103,9 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
             numero_tarefa: t.numero_tarefa,
             total_questions: p?.total_questoes || 0,
             correct_answers: p?.acertos || 0,
-            completed: !!p
+            completed: !!p,
+            link_questoes: t.link_questoes,
+            link_material: t.link_material
           };
         });
 
@@ -353,15 +357,30 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
                       <div className="flex flex-col lg:flex-row gap-8 items-start">
                         {/* Coluna Esquerda: Ações e Histórico */}
                         <div className="flex-1 w-full space-y-8">
-                          {/* Botão TEC */}
-                          <a 
-                            href="https://www.tecnoconcursos.com.br" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center text-white bg-blue-600 px-6 py-4 rounded-2xl text-[13px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all w-full shadow-md whitespace-nowrap gap-2"
-                          >
-                            <ExternalLink className="w-5 h-5" /> Praticar no TEC Concursos
-                          </a>
+                          {/* Botões de Ação */}
+                          <div className="flex flex-col gap-3 w-full">
+                            {task.link_questoes && (
+                              <a 
+                                href={task.link_questoes} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center text-white bg-blue-600 px-6 py-4 rounded-2xl text-[13px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all w-full shadow-md whitespace-nowrap gap-2"
+                              >
+                                <ExternalLink className="w-5 h-5" /> Praticar no TEC Concursos
+                              </a>
+                            )}
+
+                            {task.link_material && (
+                              <a 
+                                href={supabase.storage.from('materiais-estudo').getPublicUrl(task.link_material).data.publicUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center text-blue-900 bg-white border-2 border-blue-900 px-6 py-4 rounded-2xl text-[13px] font-bold uppercase tracking-widest hover:bg-blue-50 transition-all w-full shadow-md whitespace-nowrap gap-2"
+                              >
+                                📖 Ver Resumo
+                              </a>
+                            )}
+                          </div>
 
                           {/* Inputs e Botão Salvar */}
                           <div className="bg-slate-50 rounded-[1.5rem] p-6 border border-slate-100 shadow-inner">
