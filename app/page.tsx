@@ -10,13 +10,15 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import MotivationalMentor from '@/components/MotivationalMentor';
 
-const METAS = Array.from({ length: 10 }, (_, i) => ({
-  id: `M${String(i + 1).padStart(2, '0')}`,
-  title: `Meta ${String(i + 1).padStart(2, '0')}`,
-}));
-
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
+  const [metas, setMetas] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(`metas_${user?.id || 'guest'}`);
+      return cached ? JSON.parse(cached) : [];
+    }
+    return [];
+  });
   const [progress, setProgress] = useState<Record<string, any>>(() => {
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem(`progress_${user?.id || 'guest'}`);
@@ -28,9 +30,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [totalTasks, setTotalTasks] = useState(() => {
     if (typeof window !== 'undefined') {
-      return Number(localStorage.getItem(`totalTasks_${user?.id || 'guest'}`)) || 90;
+      return Number(localStorage.getItem(`totalTasks_${user?.id || 'guest'}`)) || 0;
     }
-    return 90;
+    return 0;
   });
   const [completedTasksCount, setCompletedTasksCount] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -43,16 +45,18 @@ export default function Dashboard() {
 
   // Update hasDataRef whenever progress changes
   useEffect(() => {
-    hasDataRef.current = Object.keys(progress).length > 0;
-  }, [progress]);
+    hasDataRef.current = Object.keys(progress).length > 0 && metas.length > 0;
+  }, [progress, metas]);
 
   // Load from localStorage on mount or user change
   useEffect(() => {
     if (user?.id) {
+      const cachedMetas = localStorage.getItem(`metas_${user.id}`);
       const cachedProgress = localStorage.getItem(`progress_${user.id}`);
       const cachedTotal = localStorage.getItem(`totalTasks_${user.id}`);
       const cachedCompleted = localStorage.getItem(`completedTasksCount_${user.id}`);
       
+      if (cachedMetas) setMetas(JSON.parse(cachedMetas));
       if (cachedProgress) setProgress(JSON.parse(cachedProgress));
       if (cachedTotal) setTotalTasks(Number(cachedTotal));
       if (cachedCompleted) setCompletedTasksCount(Number(cachedCompleted));
@@ -76,14 +80,22 @@ export default function Dashboard() {
 
       // Data fetch promise
       const fetchDataPromise = (async () => {
-        // 1. Fetch all tasks to know their meta_id
+        // 1. Fetch all metas ordered by ordem
+        const { data: dbMetas, error: metasError } = await supabase
+          .from('metas')
+          .select('*')
+          .order('ordem', { ascending: true });
+        
+        if (metasError) throw metasError;
+
+        // 2. Fetch all tasks to know their meta_id
         const { data: allTasks, error: tasksError } = await supabase
           .from('tarefas')
           .select('id, meta_id');
         
         if (tasksError) throw tasksError;
 
-        // 2. Fetch progress entries for THIS user only
+        // 3. Fetch progress entries for THIS user only
         const { data: allProgress, error: progressError } = await supabase
           .from('progresso')
           .select('tarefa_id, acertos, total_questoes')
@@ -91,14 +103,14 @@ export default function Dashboard() {
         
         if (progressError) throw progressError;
 
-        return { allTasks, allProgress };
+        return { dbMetas, allTasks, allProgress };
       })();
 
       // Race against timeout
       const result = await Promise.race([fetchDataPromise, timeoutPromise]) as any;
-      const { allTasks, allProgress } = result;
+      const { dbMetas, allTasks, allProgress } = result;
 
-      // 3. Calculate progress per meta
+      // 4. Calculate progress per meta
       const completedTaskIds = new Set(allProgress?.map((p: any) => p.tarefa_id));
       
       const metaMap: Record<string, { completed: number, total: number }> = {};
@@ -113,17 +125,18 @@ export default function Dashboard() {
       });
 
       // Update state and cache
+      setMetas(dbMetas || []);
       setProgress(metaMap);
-      setTotalTasks(allTasks?.length || 90);
+      setTotalTasks(allTasks?.length || 0);
       setCompletedTasksCount(completedTaskIds.size);
 
+      localStorage.setItem(`metas_${user.id}`, JSON.stringify(dbMetas || []));
       localStorage.setItem(`progress_${user.id}`, JSON.stringify(metaMap));
-      localStorage.setItem(`totalTasks_${user.id}`, String(allTasks?.length || 90));
+      localStorage.setItem(`totalTasks_${user.id}`, String(allTasks?.length || 0));
       localStorage.setItem(`completedTasksCount_${user.id}`, String(completedTaskIds.size));
 
     } catch (err) {
       // On timeout or error, we just keep using what's in state/localStorage
-      // We don't log the error to keep it silent as requested
     } finally {
       setLoading(false);
     }
@@ -139,7 +152,7 @@ export default function Dashboard() {
 
   // Priority Rendering: If we have a user and some progress data (from cache), 
   // show the dashboard even if background loading is still happening.
-  const showDashboard = user && (Object.keys(progress).length > 0 || !loading);
+  const showDashboard = user && (metas.length > 0 || !loading);
 
   if (authLoading || (loading && !showDashboard)) {
     return (
@@ -195,7 +208,7 @@ export default function Dashboard() {
               <p className="text-[9px] text-emerald-500 font-bold uppercase mt-1">
                 {completedTasksCount === 0 
                   ? 'Sua jornada começa agora!' 
-                  : completedTasksCount >= 90 
+                  : completedTasksCount >= totalTasks && totalTasks > 0
                     ? 'MISSÃO CUMPRIDA! VOCÊ ESTÁ PRONTO.' 
                     : 'CONTINUE ASSIM!'}
               </p>
@@ -209,13 +222,13 @@ export default function Dashboard() {
             <p className="text-[11px] text-gray-800 font-semibold uppercase tracking-widest">Selecione sua meta diária</p>
           </div>
           <div className="bg-blue-900 text-white px-4 py-2 rounded-full text-[9px] font-medium uppercase tracking-widest">
-            {Object.keys(progress).filter(k => progress[k].completed === progress[k].total).length} Metas Batidas
+            {Object.keys(progress).filter(k => progress[k].completed === progress[k].total && progress[k].total > 0).length} Metas Batidas
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {METAS.map((meta, index) => {
-            const metaProgress = progress[meta.id] || { completed: 0, total: 9 };
+          {metas.map((meta, index) => {
+            const metaProgress = progress[meta.id] || { completed: 0, total: 0 };
             const isCompleted = metaProgress.completed >= metaProgress.total && metaProgress.total > 0;
             const percent = metaProgress.total > 0 ? (metaProgress.completed / metaProgress.total) * 100 : 0;
 
@@ -238,7 +251,7 @@ export default function Dashboard() {
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-6">
                       <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-blue-900 font-medium text-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                        {meta.id}
+                        {meta.ordem || index + 1}
                       </div>
                       {isCompleted ? (
                         <div className="bg-emerald-500 text-white p-1.5 rounded-full shadow-lg shadow-emerald-200">
@@ -252,7 +265,7 @@ export default function Dashboard() {
                     </div>
                     
                     <h3 className="text-lg font-extrabold text-slate-900 uppercase tracking-tight mb-4">
-                      {meta.title}
+                      {meta.nome_meta || meta.title}
                     </h3>
                     
                     <div className="space-y-4">
