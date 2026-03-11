@@ -372,7 +372,7 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
 
                             {task.link_material && (
                               <a 
-                                href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/materiais-estudo/${task.link_material}`} 
+                                href={supabase.storage.from('materiais-estudo').getPublicUrl(task.link_material).data.publicUrl} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="flex items-center justify-center text-blue-900 bg-white border-2 border-blue-900 px-6 py-4 rounded-2xl text-[13px] font-bold uppercase tracking-widest hover:bg-blue-50 transition-all w-full shadow-md whitespace-nowrap gap-2"
