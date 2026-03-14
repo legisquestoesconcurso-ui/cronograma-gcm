@@ -26,6 +26,7 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
   const { id: metaId } = use(params);
   const { user, loading: authLoading } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [metaName, setMetaName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
@@ -43,10 +44,32 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
         setLoading(true);
         setError(null);
 
-        // 1. ID Mapping: Extract number from URL (e.g., 'M01' -> 1)
+        // 0. Try to load from cache first
+        const cacheKey = `meta_tasks_${metaId}_${user.id}`;
+        const cachedTasks = localStorage.getItem(cacheKey);
+        const cachedName = localStorage.getItem(`meta_name_${metaId}`);
+        if (cachedTasks) {
+          setTasks(JSON.parse(cachedTasks));
+          if (cachedName) setMetaName(cachedName);
+          setLoading(false);
+        }
+
+        // 1. Fetch Meta Name
+        const { data: metaData } = await supabase
+          .from('metas')
+          .select('nome_meta')
+          .eq('id', metaId)
+          .single();
+        
+        if (metaData) {
+          setMetaName(metaData.nome_meta);
+          localStorage.setItem(`meta_name_${metaId}`, metaData.nome_meta);
+        }
+
+        // 2. ID Mapping: Extract number from URL (e.g., 'M01' -> 1)
         const metaNumber = parseInt(metaId.replace(/\D/g, ''), 10);
         
-        // 2. Fetch all tasks for this meta
+        // 3. Fetch all tasks for this meta
         const { data: dbTarefas, error: fetchError } = await supabase
           .from('tarefas')
           .select('*')
@@ -82,7 +105,7 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
           }
         }
 
-        // 3. Fetch Latest Progress for all tasks using 'progresso' table for THIS user
+        // 4. Fetch Latest Progress for all tasks using 'progresso' table for THIS user
         const taskIds = finalTarefas!.map(t => t.id);
         const { data: progressData, error: progressError } = await supabase
           .from('progresso')
@@ -110,6 +133,7 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
         });
 
         setTasks(taskList);
+        localStorage.setItem(cacheKey, JSON.stringify(taskList));
 
         // Set initial inputs
         const initialInputs: Record<string, { total: string, correct: string }> = {};
@@ -248,10 +272,12 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
 
         <div className="mb-12">
           <h1 className="text-2xl font-extrabold text-slate-900 uppercase tracking-tighter leading-none mb-2">
-            META {metaId.replace('M', '')} - Cronograma de Hoje
+            {metaName || `META ${metaId.replace(/\D/g, '') || '...'}`} - Cronograma de Hoje
           </h1>
           <div className="mb-2">
-            <MotivationalMentor />
+            <p className="text-blue-600 font-bold uppercase tracking-widest text-xs">
+              Sua farda está sendo tecida hoje.
+            </p>
           </div>
           <p className="text-slate-500 font-normal uppercase text-[10px] tracking-widest">
             Complete as 9 tarefas para bater sua meta diária
