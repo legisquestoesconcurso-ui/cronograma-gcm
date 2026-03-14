@@ -1,5 +1,4 @@
 import React from 'react';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import MotivationalMentor from '@/components/MotivationalMentor';
@@ -35,13 +34,11 @@ export default async function DashboardPage() {
       
       <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
         <div className="mb-24 flex flex-col items-center text-center">
-          <div className="relative h-[100px] w-full max-w-[300px] mb-6">
-            <Image 
+          <div className="mb-6">
+            <img 
               src="/logo-projeto.png" 
               alt="Logo Projeto Ser GCM" 
-              fill
-              className="object-contain"
-              priority
+              className="h-[100px] w-auto object-contain"
             />
           </div>
           
