@@ -141,10 +141,7 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
             >
               <div className={`bg-white rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all duration-300 border-2 overflow-hidden group ${isCompleted ? 'border-emerald-100' : 'border-slate-100 hover:border-blue-400'}`}>
                 <div className="p-8">
-                  <div className="flex justify-between items-start mb-8">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold transition-colors ${isCompleted ? 'bg-emerald-500 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-600 group-hover:text-white'}`}>
-                      {meta.ordem || index + 1}
-                    </div>
+                  <div className="flex justify-end items-start mb-4 min-h-[1.5rem]">
                     {isCompleted && (
                       <div className="bg-emerald-500 text-white p-2 rounded-full shadow-lg shadow-emerald-200">
                         <CheckCircle2 className="w-5 h-5" />
