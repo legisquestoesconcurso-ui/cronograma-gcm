@@ -35,9 +35,9 @@ export default async function DashboardPage() {
       
       <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
         <div className="mb-32 flex flex-col items-center text-center">
-          <div className="relative h-[150px] w-full max-w-[400px] mb-10">
+          <div className="relative h-[100px] w-full max-w-[300px] mb-10">
             <Image 
-              src="/logo-projeto.jpg" 
+              src="/logo-projeto.png" 
               alt="Logo Projeto Ser GCM" 
               fill
               className="object-contain"
