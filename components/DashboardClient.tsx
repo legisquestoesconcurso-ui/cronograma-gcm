@@ -76,40 +76,48 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
     <>
       {/* Stats Cards - Layout Desktop Otimizado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-blue-900/5 border border-slate-100 flex items-center space-x-8 hover:scale-[1.01] transition-transform">
-          <div className="bg-blue-50 p-6 rounded-3xl">
-            <Target className="w-10 h-10 text-blue-600" />
+        <div className="bg-white p-10 rounded-[3rem] shadow-2xl shadow-blue-900/5 border border-slate-100 flex items-center space-x-10 hover:scale-[1.01] transition-transform">
+          <div className="relative w-32 h-32 flex-shrink-0">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="transparent" stroke="#f1f5f9" strokeWidth="3" />
+              <circle
+                cx="18" cy="18" r="16" fill="transparent" stroke="#2563eb" strokeWidth="3"
+                strokeDasharray={`${overallPercent} ${100 - overallPercent}`}
+                strokeLinecap="round"
+                className="transition-all duration-1000 ease-out"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Target className="w-8 h-8 text-blue-600" />
+            </div>
           </div>
           <div className="flex-1">
-            <p className="text-[12px] text-slate-500 font-bold uppercase tracking-[0.2em] mb-2">Desempenho Global</p>
-            <div className="flex items-baseline space-x-3">
-              <p className="text-6xl font-black text-slate-900 tracking-tighter">
+            <p className="text-[14px] text-slate-500 font-bold uppercase tracking-[0.25em] mb-3">Desempenho Global</p>
+            <div className="flex items-baseline space-x-4">
+              <p className="text-7xl font-black text-slate-900 tracking-tighter">
                 {overallPercent.toFixed(1)}%
               </p>
-              <span className="text-slate-400 font-medium uppercase text-[10px] tracking-widest">Concluído</span>
+              <span className="text-slate-400 font-bold uppercase text-xs tracking-widest">Concluído</span>
             </div>
-            <div className="mt-4 w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-              <div 
-                className="bg-blue-600 h-full transition-all duration-1000 ease-out"
-                style={{ width: `${overallPercent}%` }}
-              />
-            </div>
+            <p className="text-[11px] text-blue-600 font-black uppercase mt-4 tracking-widest">
+              {overallPercent >= 100 ? '🏁 CICLO FINALIZADO!' : '📈 EVOLUINDO CONSTANTEMENTE'}
+            </p>
           </div>
         </div>
         
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-blue-900/5 border border-slate-100 flex items-center space-x-8 hover:scale-[1.01] transition-transform">
-          <div className="bg-emerald-50 p-6 rounded-3xl">
-            <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+        <div className="bg-white p-10 rounded-[3rem] shadow-2xl shadow-blue-900/5 border border-slate-100 flex items-center space-x-10 hover:scale-[1.01] transition-transform">
+          <div className="bg-emerald-50 p-8 rounded-[2rem] flex-shrink-0">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600" />
           </div>
           <div className="flex-1">
-            <p className="text-[12px] text-slate-500 font-bold uppercase tracking-[0.2em] mb-2">Metas Batidas</p>
-            <div className="flex items-baseline space-x-3">
-              <p className="text-6xl font-black text-slate-900 tracking-tighter">
+            <p className="text-[14px] text-slate-500 font-bold uppercase tracking-[0.25em] mb-3">Metas Batidas</p>
+            <div className="flex items-baseline space-x-4">
+              <p className="text-7xl font-black text-slate-900 tracking-tighter">
                 {completedCount}
               </p>
-              <span className="text-slate-400 font-medium text-2xl">/ {totalTasks}</span>
+              <span className="text-slate-400 font-bold text-3xl">/ {totalTasks}</span>
             </div>
-            <p className="text-[10px] text-emerald-600 font-black uppercase mt-3 tracking-widest">
+            <p className="text-[11px] text-emerald-600 font-black uppercase mt-4 tracking-widest">
               {completedCount >= totalTasks && totalTasks > 0 ? '🏆 OBJETIVO ALCANÇADO!' : '🚀 MANTENHA O RITMO!'}
             </p>
           </div>

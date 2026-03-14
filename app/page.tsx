@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import MotivationalMentor from '@/components/MotivationalMentor';
@@ -32,12 +33,18 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       
-      <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-16">
-        <div className="mb-24 text-center">
-          <h1 className="text-4xl sm:text-6xl font-black text-slate-950 uppercase tracking-[0.25em] mb-8 leading-tight">
-            MEU CRONOGRAMA GCM
-          </h1>
-          <div className="flex justify-center mt-6">
+      <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
+        <div className="mb-32 flex flex-col items-center text-center">
+          <div className="relative h-[150px] w-full max-w-[400px] mb-10">
+            <Image 
+              src="/logo-projeto.jpg" 
+              alt="Logo Projeto Ser GCM" 
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          <div className="flex justify-center mt-4">
             <MotivationalMentor />
           </div>
         </div>
