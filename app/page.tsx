@@ -34,8 +34,8 @@ export default async function DashboardPage() {
       <Navbar />
       
       <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
-        <div className="mb-32 flex flex-col items-center text-center">
-          <div className="relative h-[100px] w-full max-w-[300px] mb-10">
+        <div className="mb-24 flex flex-col items-center text-center">
+          <div className="relative h-[100px] w-full max-w-[300px] mb-6">
             <Image 
               src="/logo-projeto.png" 
               alt="Logo Projeto Ser GCM" 
@@ -44,7 +44,12 @@ export default async function DashboardPage() {
               priority
             />
           </div>
-          <div className="flex justify-center mt-4">
+          
+          <h1 className="text-4xl sm:text-5xl font-black text-slate-900 uppercase tracking-tight mb-8">
+            Meu Cronograma de Estudos
+          </h1>
+
+          <div className="flex justify-center">
             <MotivationalMentor />
           </div>
         </div>
