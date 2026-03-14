@@ -1,7 +1,6 @@
 import React from 'react';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
-import MotivationalMentor from '@/components/MotivationalMentor';
 import DashboardClient from '@/components/DashboardClient';
 
 // Estratégia de Cache: Revalida a cada 60 segundos
@@ -38,7 +37,7 @@ export default async function DashboardPage() {
             <img 
               src="/logo-projeto.png" 
               alt="Logo Projeto Ser GCM" 
-              className="h-[100px] w-auto object-contain"
+              className="h-[160px] w-auto object-contain"
             />
           </div>
           
@@ -47,7 +46,9 @@ export default async function DashboardPage() {
           </h1>
 
           <div className="flex justify-center">
-            <MotivationalMentor />
+            <p className="text-blue-600 font-bold uppercase tracking-widest text-sm sm:text-base">
+              A farda não é apenas uma roupa, é um compromisso.
+            </p>
           </div>
         </div>
 
