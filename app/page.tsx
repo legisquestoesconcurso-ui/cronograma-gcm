@@ -32,12 +32,12 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-20 text-center">
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-950 uppercase tracking-widest mb-6">
+      <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-16">
+        <div className="mb-24 text-center">
+          <h1 className="text-4xl sm:text-6xl font-black text-slate-950 uppercase tracking-[0.25em] mb-8 leading-tight">
             MEU CRONOGRAMA GCM
           </h1>
-          <div className="flex justify-center mt-4">
+          <div className="flex justify-center mt-6">
             <MotivationalMentor />
           </div>
         </div>
