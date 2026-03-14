@@ -74,8 +74,9 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
 
   return (
     <>
-      {/* Stats Cards - Layout Desktop Otimizado */}
+      {/* Stats Cards - Layout Original Restaurado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+        {/* Desempenho Global */}
         <div className="bg-white p-10 rounded-[3rem] shadow-2xl shadow-blue-900/5 border border-slate-100 flex items-center space-x-10 hover:scale-[1.01] transition-transform">
           <div className="relative w-32 h-32 flex-shrink-0">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
@@ -92,7 +93,7 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
             </div>
           </div>
           <div className="flex-1">
-            <p className="text-[14px] text-slate-500 font-bold uppercase tracking-[0.25em] mb-3">Desempenho Global</p>
+            <p className="text-[14px] text-slate-500 font-bold uppercase tracking-[0.25em] mb-3">🎯 Desempenho Global</p>
             <div className="flex items-baseline space-x-4">
               <p className="text-7xl font-black text-slate-900 tracking-tighter">
                 {overallPercent.toFixed(1)}%
@@ -105,12 +106,13 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
           </div>
         </div>
         
+        {/* Metas Batidas */}
         <div className="bg-white p-10 rounded-[3rem] shadow-2xl shadow-blue-900/5 border border-slate-100 flex items-center space-x-10 hover:scale-[1.01] transition-transform">
           <div className="bg-emerald-50 p-8 rounded-[2rem] flex-shrink-0">
             <CheckCircle2 className="w-12 h-12 text-emerald-600" />
           </div>
           <div className="flex-1">
-            <p className="text-[14px] text-slate-500 font-bold uppercase tracking-[0.25em] mb-3">Metas Batidas</p>
+            <p className="text-[14px] text-slate-500 font-bold uppercase tracking-[0.25em] mb-3">✅ Metas Batidas</p>
             <div className="flex items-baseline space-x-4">
               <p className="text-7xl font-black text-slate-900 tracking-tighter">
                 {completedCount}
