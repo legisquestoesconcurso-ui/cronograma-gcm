@@ -3,10 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { Target, CheckCircle2 } from 'lucide-react';
+import { Target, CheckCircle2, AlertCircle, CreditCard } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+
+const ADMIN_EMAIL = 'legisquestoesconcurso@gmail.com';
 
 interface DashboardClientProps {
   initialMetas: any[];
@@ -16,6 +18,7 @@ interface DashboardClientProps {
 export default function DashboardClient({ initialMetas, totalTasks }: DashboardClientProps) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const [isSubscriptionActive, setIsSubscriptionActive] = useState<boolean | null>(null);
   
   // Inicializa o estado a partir do LocalStorage para evitar "loading" ao alternar abas
   const [progress, setProgress] = useState<Record<string, any>>(() => {
@@ -37,26 +40,45 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
   useEffect(() => {
     if (!user) return;
 
-    const checkProfileAndFetchProgress = async () => {
-      // 1. Verificar se o perfil está completo (WhatsApp preenchido)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('whatsapp')
-        .eq('id', user.id)
-        .single();
+    const checkAccessAndFetchProgress = async () => {
+      try {
+        // 1. Verificar Assinatura (com Passe Livre para Admin)
+        const isAdmin = user.email === ADMIN_EMAIL;
+        
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('subscription_status, whatsapp')
+          .eq('id', user.id)
+          .single();
 
-      if (!profile || !profile.whatsapp) {
-        router.push('/perfil');
-        return;
-      }
+        // Se o perfil não existe, cria um básico para evitar erros
+        if (profileError && profileError.code === 'PGRST116') {
+          await supabase.from('profiles').insert({ id: user.id, subscription_status: 'active' });
+        }
 
-      // 2. Buscar progresso do usuário
-      const { data: allProgress } = await supabase
-        .from('progresso')
-        .select('tarefa_id')
-        .eq('user_id', user.id);
+        if (!isAdmin) {
+          if (!profileData || profileData.subscription_status !== 'active') {
+            setIsSubscriptionActive(false);
+            return;
+          }
+        }
+        
+        setIsSubscriptionActive(true);
 
-      if (allProgress) {
+        // 2. Verificar Perfil Completo (WhatsApp) - Admin também preenche ou pula?
+        // O usuário disse "acesso direto", então admin pula o perfil também
+        if (!isAdmin && (!profileData || !profileData.whatsapp)) {
+          router.push('/perfil');
+          return;
+        }
+
+        // 3. Buscar progresso do usuário
+        const { data: allProgress } = await supabase
+          .from('progresso')
+          .select('tarefa_id')
+          .eq('user_id', user.id);
+
+        if (allProgress) {
         const completedIds = new Set(allProgress.map(p => p.tarefa_id));
         const newCompletedCount = completedIds.size;
         setCompletedCount(newCompletedCount);
@@ -80,12 +102,55 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
           localStorage.setItem(`dashboard_completed_${user.id}`, String(newCompletedCount));
         }
       }
-    };
+    } catch (error) {
+      console.error('Erro ao verificar acesso:', error);
+    }
+  };
 
-    checkProfileAndFetchProgress();
+    checkAccessAndFetchProgress();
   }, [user, router]);
 
   const overallPercent = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
+
+  if (authLoading || isSubscriptionActive === null) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (isSubscriptionActive === false) {
+    return (
+      <div className="max-w-2xl mx-auto mt-12">
+        <div className="bg-white rounded-[3rem] p-12 shadow-2xl border-2 border-red-50 text-center">
+          <div className="bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8">
+            <AlertCircle className="w-12 h-12 text-red-500" />
+          </div>
+          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-4">
+            Assinatura Suspensa
+          </h2>
+          <p className="text-slate-500 font-medium mb-10 leading-relaxed">
+            Identificamos um problema com sua assinatura. Para continuar acessando seu cronograma de elite e todos os materiais, regularize seu acesso agora.
+          </p>
+          <div className="space-y-4">
+            <a 
+              href="https://pay.kiwify.com.br/SUA_URL_AQUI" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full bg-blue-600 text-white font-black uppercase tracking-widest py-5 rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-3"
+            >
+              <CreditCard className="w-5 h-5" />
+              REGULARIZAR ACESSO
+            </a>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              Dúvidas? Entre em contato com o suporte.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

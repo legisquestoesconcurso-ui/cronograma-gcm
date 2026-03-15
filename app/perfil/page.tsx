@@ -87,7 +87,10 @@ export default function PerfilPage() {
         .from('profiles')
         .upsert({
           id: user.id,
-          ...formData,
+          whatsapp: formData.whatsapp,
+          estado: formData.estado,
+          municipio: formData.municipio,
+          concurso_pretendido: formData.concurso_pretendido,
           updated_at: new Date().toISOString()
         });
 
