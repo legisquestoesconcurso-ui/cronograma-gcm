@@ -44,34 +44,31 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
       try {
         const isAdmin = user.email === ADMIN_EMAIL;
 
-        // Se for o Admin: Carrega o dashboard direto.
-        if (isAdmin) {
-          setIsSubscriptionActive(true);
-          await fetchUserProgress();
-          return;
-        }
-
-        // Se for Aluno: 1º verifica assinatura ativa
+        // 1. Buscar dados do perfil
         const { data: profileData } = await supabase
           .from('profiles')
           .select('subscription_status, whatsapp')
           .eq('id', user.id)
           .single();
 
-        if (!profileData || profileData.subscription_status !== 'active') {
-          setIsSubscriptionActive(false);
-          return;
+        // 2. Verificar Assinatura (Admin pula esta trava)
+        if (!isAdmin) {
+          if (!profileData || profileData.subscription_status !== 'active') {
+            setIsSubscriptionActive(false);
+            return;
+          }
         }
         
         setIsSubscriptionActive(true);
 
-        // 2º verifica se o whatsapp está preenchido (se estiver vazio, manda para /perfil)
-        if (!profileData.whatsapp) {
+        // 3. Trava de Perfil (PARA TODOS, inclusive Admin)
+        // Se o WhatsApp estiver vazio, manda para /perfil
+        if (!profileData || !profileData.whatsapp) {
           router.push('/perfil');
           return;
         }
 
-        // 3º Se as duas condições acima estiverem ok, carregue o dashboard
+        // 4. Se passou em tudo, carrega o progresso
         await fetchUserProgress();
       } catch (error) {
         console.error('Erro ao verificar acesso:', error);

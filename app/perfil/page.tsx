@@ -97,10 +97,11 @@ export default function PerfilPage() {
       if (error) throw error;
       toast.success('Perfil atualizado com sucesso!');
       
-      // Redireciona após 2 segundos
+      // Refresh e Redireciona
       setTimeout(() => {
         router.push('/');
-      }, 2000);
+        router.refresh();
+      }, 1500);
     } catch (error: any) {
       toast.error('Erro ao salvar dados: ' + error.message);
     } finally {
