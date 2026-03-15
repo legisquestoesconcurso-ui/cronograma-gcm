@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 
 const ESTADOS = [
@@ -16,6 +17,7 @@ const ESTADOS = [
 
 export default function PerfilPage() {
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     whatsapp: '',
@@ -90,7 +92,12 @@ export default function PerfilPage() {
         });
 
       if (error) throw error;
-      toast.success('Dados salvos com sucesso!');
+      toast.success('Perfil atualizado com sucesso!');
+      
+      // Redireciona após 2 segundos
+      setTimeout(() => {
+        router.push('/');
+      }, 2000);
     } catch (error: any) {
       toast.error('Erro ao salvar dados: ' + error.message);
     } finally {

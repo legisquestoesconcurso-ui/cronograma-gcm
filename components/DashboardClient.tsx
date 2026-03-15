@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Target, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface DashboardClientProps {
   initialMetas: any[];
@@ -14,6 +15,7 @@ interface DashboardClientProps {
 
 export default function DashboardClient({ initialMetas, totalTasks }: DashboardClientProps) {
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   
   // Inicializa o estado a partir do LocalStorage para evitar "loading" ao alternar abas
   const [progress, setProgress] = useState<Record<string, any>>(() => {
@@ -35,7 +37,20 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
   useEffect(() => {
     if (!user) return;
 
-    const fetchUserProgress = async () => {
+    const checkProfileAndFetchProgress = async () => {
+      // 1. Verificar se o perfil está completo (WhatsApp preenchido)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('whatsapp')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || !profile.whatsapp) {
+        router.push('/perfil');
+        return;
+      }
+
+      // 2. Buscar progresso do usuário
       const { data: allProgress } = await supabase
         .from('progresso')
         .select('tarefa_id')
@@ -67,8 +82,8 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
       }
     };
 
-    fetchUserProgress();
-  }, [user]);
+    checkProfileAndFetchProgress();
+  }, [user, router]);
 
   const overallPercent = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
 
