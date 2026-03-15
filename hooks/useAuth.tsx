@@ -23,6 +23,8 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+const ADMIN_EMAIL = 'legisquestoesconcurso@gmail.com';
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<{
@@ -120,16 +122,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    if (user && profile) {
-      const isSubscriptionActive = profile.status_assinatura === true;
-      const isNotExpired = profile.data_limite ? new Date(profile.data_limite) > new Date() : false;
-
-      if (!isSubscriptionActive || !isNotExpired) {
-        if (pathname !== '/suspended') {
-          router.push('/suspended');
+    if (user) {
+      const isAdmin = user.email === ADMIN_EMAIL;
+      
+      if (isAdmin) {
+        if (pathname === '/suspended' || pathname === '/login' || pathname === '/signup') {
+          router.push('/');
         }
-      } else if (pathname === '/suspended' || pathname === '/login' || pathname === '/signup') {
-        router.push('/');
+        return;
+      }
+
+      if (profile) {
+        const isSubscriptionActive = profile.status_assinatura === true;
+        const isNotExpired = profile.data_limite ? new Date(profile.data_limite) > new Date() : false;
+
+        if (!isSubscriptionActive || !isNotExpired) {
+          if (pathname !== '/suspended') {
+            router.push('/suspended');
+          }
+        } else if (pathname === '/suspended' || pathname === '/login' || pathname === '/signup') {
+          router.push('/');
+        }
       }
     }
   }, [user, profile, loading, pathname, router]);

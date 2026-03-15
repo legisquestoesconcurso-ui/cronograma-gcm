@@ -42,43 +42,49 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
 
     const checkAccessAndFetchProgress = async () => {
       try {
-        // 1. Verificar Assinatura (com Passe Livre para Admin)
         const isAdmin = user.email === ADMIN_EMAIL;
-        
-        const { data: profileData, error: profileError } = await supabase
+
+        // Se for o Admin: Carrega o dashboard direto.
+        if (isAdmin) {
+          setIsSubscriptionActive(true);
+          await fetchUserProgress();
+          return;
+        }
+
+        // Se for Aluno: 1º verifica assinatura ativa
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('subscription_status, whatsapp')
           .eq('id', user.id)
           .single();
 
-        // Se o perfil não existe, cria um básico para evitar erros
-        if (profileError && profileError.code === 'PGRST116') {
-          await supabase.from('profiles').insert({ id: user.id, subscription_status: 'active' });
-        }
-
-        if (!isAdmin) {
-          if (!profileData || profileData.subscription_status !== 'active') {
-            setIsSubscriptionActive(false);
-            return;
-          }
+        if (!profileData || profileData.subscription_status !== 'active') {
+          setIsSubscriptionActive(false);
+          return;
         }
         
         setIsSubscriptionActive(true);
 
-        // 2. Verificar Perfil Completo (WhatsApp) - Admin também preenche ou pula?
-        // O usuário disse "acesso direto", então admin pula o perfil também
-        if (!isAdmin && (!profileData || !profileData.whatsapp)) {
+        // 2º verifica se o whatsapp está preenchido (se estiver vazio, manda para /perfil)
+        if (!profileData.whatsapp) {
           router.push('/perfil');
           return;
         }
 
-        // 3. Buscar progresso do usuário
-        const { data: allProgress } = await supabase
-          .from('progresso')
-          .select('tarefa_id')
-          .eq('user_id', user.id);
+        // 3º Se as duas condições acima estiverem ok, carregue o dashboard
+        await fetchUserProgress();
+      } catch (error) {
+        console.error('Erro ao verificar acesso:', error);
+      }
+    };
 
-        if (allProgress) {
+    const fetchUserProgress = async () => {
+      const { data: allProgress } = await supabase
+        .from('progresso')
+        .select('tarefa_id')
+        .eq('user_id', user.id);
+
+      if (allProgress) {
         const completedIds = new Set(allProgress.map(p => p.tarefa_id));
         const newCompletedCount = completedIds.size;
         setCompletedCount(newCompletedCount);
@@ -97,15 +103,11 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
           
           setProgress(metaMap);
           
-          // Salva no cache para persistência instantânea
           localStorage.setItem(`dashboard_progress_${user.id}`, JSON.stringify(metaMap));
           localStorage.setItem(`dashboard_completed_${user.id}`, String(newCompletedCount));
         }
       }
-    } catch (error) {
-      console.error('Erro ao verificar acesso:', error);
-    }
-  };
+    };
 
     checkAccessAndFetchProgress();
   }, [user, router]);
