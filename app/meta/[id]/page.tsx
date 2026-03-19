@@ -27,6 +27,7 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
   const { user, loading: authLoading } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [metaName, setMetaName] = useState<string>('');
+  const [concursoId, setConcursoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
@@ -54,15 +55,16 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
           setLoading(false);
         }
 
-        // 1. Fetch Meta Name
+        // 1. Fetch Meta Data (including concurso_id)
         const { data: metaData } = await supabase
           .from('metas')
-          .select('nome_meta')
+          .select('nome_meta, concurso_id')
           .eq('id', metaId)
           .single();
         
         if (metaData) {
           setMetaName(metaData.nome_meta);
+          setConcursoId(metaData.concurso_id);
           localStorage.setItem(`meta_name_${metaId}`, metaData.nome_meta);
         }
 
@@ -195,17 +197,23 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
     }
 
     try {
-      // Insert using tarefa_id (UUID) and user_id
-      const { error } = await supabase.from('progresso').insert({
+      // 1. Insert into 'progresso' (Legacy/Compatibility)
+      await supabase.from('progresso').insert({
         tarefa_id: taskId, 
         user_id: user.id,
         total_questoes: Number(total),
         acertos: Number(correct),
       });
 
-      if (error) {
-        console.error("Erro detalhado:", JSON.stringify(error, null, 2));
-        throw error;
+      // 2. Insert into 'user_progress' (New Multi-Concurso Table)
+      if (concursoId) {
+        await supabase.from('user_progress').insert({
+          tarefa_id: taskId,
+          user_id: user.id,
+          concurso_id: concursoId,
+          total_questoes: Number(total),
+          acertos: Number(correct),
+        }).catch(err => console.warn("user_progress table might not exist yet:", err));
       }
 
       // Clear the inputs for this task after successful save

@@ -10,25 +10,33 @@ import { User } from 'lucide-react';
 export const revalidate = 60;
 
 async function getInitialData() {
-  // 1. Buscar todas as metas ordenadas por ordem
+  // 1. Buscar todos os concursos disponíveis
+  const { data: concursos } = await supabase
+    .from('concursos')
+    .select('id, nome')
+    .order('nome', { ascending: true });
+
+  // 2. Buscar todas as metas ordenadas por ordem (inicialmente pegamos as do concurso padrão ou as primeiras)
+  // Nota: O DashboardClient vai gerenciar a troca dinâmica, mas aqui pegamos um set inicial
   const { data: metas } = await supabase
     .from('metas')
-    .select('id, nome_meta, ordem')
+    .select('id, nome_meta, ordem, concurso_id')
     .order('ordem', { ascending: true });
 
-  // 2. Buscar total de tarefas para o contador global
+  // 3. Buscar total de tarefas para o contador global
   const { count: totalTasks } = await supabase
     .from('tarefas')
     .select('*', { count: 'exact', head: true });
 
   return {
+    concursos: concursos || [],
     metas: metas || [],
     totalTasks: totalTasks || 0
   };
 }
 
 export default async function DashboardPage() {
-  const { metas, totalTasks } = await getInitialData();
+  const { concursos, metas, totalTasks } = await getInitialData();
 
   // Espaço reservado para o futuro botão de Suporte via WhatsApp
 
@@ -74,7 +82,11 @@ export default async function DashboardPage() {
         {/* Espaço reservado para o futuro botão de Suporte via WhatsApp */}
 
         {/* Componente de Cliente que gerencia o progresso individual */}
-        <DashboardClient initialMetas={metas} totalTasks={totalTasks} />
+        <DashboardClient 
+          initialMetas={metas} 
+          totalTasks={totalTasks} 
+          concursos={concursos}
+        />
       </main>
     </div>
   );

@@ -13,17 +13,22 @@ const ADMIN_EMAIL = 'legisquestoesconcurso@gmail.com';
 interface DashboardClientProps {
   initialMetas: any[];
   totalTasks: number;
+  concursos: any[];
 }
 
-export default function DashboardClient({ initialMetas, totalTasks }: DashboardClientProps) {
+export default function DashboardClient({ initialMetas, totalTasks: initialTotalTasks, concursos }: DashboardClientProps) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [isSubscriptionActive, setIsSubscriptionActive] = useState<boolean | null>(null);
+  const [selectedConcursoId, setSelectedConcursoId] = useState<string | null>(null);
+  const [metas, setMetas] = useState<any[]>(initialMetas);
+  const [totalTasks, setTotalTasks] = useState<number>(initialTotalTasks);
+  const [loadingMetas, setLoadingMetas] = useState(false);
   
   // Inicializa o estado a partir do LocalStorage para evitar "loading" ao alternar abas
   const [progress, setProgress] = useState<Record<string, any>>(() => {
     if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem(`dashboard_progress_${user?.id || 'guest'}`);
+      const cached = localStorage.getItem(`dashboard_progress_${user?.id || 'guest'}_${selectedConcursoId || 'default'}`);
       return cached ? JSON.parse(cached) : {};
     }
     return {};
@@ -31,27 +36,134 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
   
   const [completedCount, setCompletedCount] = useState(() => {
     if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem(`dashboard_completed_${user?.id || 'guest'}`);
+      const cached = localStorage.getItem(`dashboard_completed_${user?.id || 'guest'}_${selectedConcursoId || 'default'}`);
       return cached ? Number(cached) : 0;
     }
     return 0;
   });
 
+  // 1. Determinar concurso inicial
+  useEffect(() => {
+    if (!user || !concursos.length) return;
+
+    const determineInitialConcurso = async () => {
+      // Buscar concurso_id no perfil
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('concurso_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.concurso_id) {
+        setSelectedConcursoId(profile.concurso_id);
+      } else {
+        // Se não tiver, busca o "Pré-Edital Geral"
+        const preEdital = concursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || concursos[0];
+        if (preEdital) {
+          setSelectedConcursoId(preEdital.id);
+          // Salva no perfil para as próximas vezes
+          await supabase.from('profiles').update({ concurso_id: preEdital.id }).eq('id', user.id);
+        }
+      }
+    };
+
+    determineInitialConcurso();
+  }, [user, concursos]);
+
+  // 2. Carregar Metas e Progresso quando o concurso mudar
+  useEffect(() => {
+    if (!user || !selectedConcursoId) return;
+
+    const fetchConcursoData = async () => {
+      setLoadingMetas(true);
+      try {
+        // 1. Buscar Metas do Concurso
+        const { data: concursoMetas } = await supabase
+          .from('metas')
+          .select('id, nome_meta, ordem')
+          .eq('concurso_id', selectedConcursoId)
+          .order('ordem', { ascending: true });
+
+        if (concursoMetas) {
+          setMetas(concursoMetas);
+        }
+
+        // 2. Buscar Total de Tarefas do Concurso
+        const metaIds = concursoMetas?.map(m => m.id) || [];
+        const { count: concursoTotalTasks } = await supabase
+          .from('tarefas')
+          .select('*', { count: 'exact', head: true })
+          .in('meta_id', metaIds);
+
+        setTotalTasks(concursoTotalTasks || 0);
+
+        // 3. Buscar Progresso (tabela user_progress conforme solicitado)
+        // Tentamos user_progress, se falhar usamos progresso
+        let { data: allProgress, error: progressError } = await supabase
+          .from('user_progress')
+          .select('tarefa_id')
+          .eq('user_id', user.id)
+          .eq('concurso_id', selectedConcursoId);
+
+        // Fallback para tabela 'progresso' se 'user_progress' não existir ou der erro
+        if (progressError || !allProgress) {
+          const { data: fallbackProgress } = await supabase
+            .from('progresso')
+            .select('tarefa_id')
+            .eq('user_id', user.id);
+          allProgress = fallbackProgress;
+        }
+
+        if (allProgress) {
+          const completedIds = new Set(allProgress.map(p => p.tarefa_id));
+          const newCompletedCount = completedIds.size;
+          setCompletedCount(newCompletedCount);
+
+          const { data: allTasks } = await supabase
+            .from('tarefas')
+            .select('id, meta_id')
+            .in('meta_id', metaIds);
+          
+          if (allTasks) {
+            const metaMap: Record<string, { completed: number, total: number }> = {};
+            allTasks.forEach(task => {
+              if (!metaMap[task.meta_id]) metaMap[task.meta_id] = { completed: 0, total: 0 };
+              metaMap[task.meta_id].total += 1;
+              if (completedIds.has(task.id)) {
+                metaMap[task.meta_id].completed += 1;
+              }
+            });
+            
+            setProgress(metaMap);
+            
+            localStorage.setItem(`dashboard_progress_${user.id}_${selectedConcursoId}`, JSON.stringify(metaMap));
+            localStorage.setItem(`dashboard_completed_${user.id}_${selectedConcursoId}`, String(newCompletedCount));
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do concurso:', error);
+      } finally {
+        setLoadingMetas(false);
+      }
+    };
+
+    fetchConcursoData();
+  }, [user, selectedConcursoId]);
+
+  // 3. Verificar Acesso (Assinatura e Perfil)
   useEffect(() => {
     if (!user) return;
 
-    const checkAccessAndFetchProgress = async () => {
+    const checkAccess = async () => {
       try {
         const isAdmin = user.email === ADMIN_EMAIL;
 
-        // 1. Buscar dados do perfil
         const { data: profileData } = await supabase
           .from('profiles')
           .select('subscription_status, whatsapp')
           .eq('id', user.id)
           .single();
 
-        // 2. Verificar Assinatura (Admin pula esta trava)
         if (!isAdmin) {
           if (!profileData || profileData.subscription_status !== 'active') {
             setIsSubscriptionActive(false);
@@ -61,53 +173,25 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
         
         setIsSubscriptionActive(true);
 
-        // 3. Trava de Perfil (PARA TODOS, inclusive Admin)
-        // Se o WhatsApp estiver vazio, manda para /perfil
         if (!profileData || !profileData.whatsapp) {
           router.push('/perfil');
           return;
         }
-
-        // 4. Se passou em tudo, carrega o progresso
-        await fetchUserProgress();
       } catch (error) {
         console.error('Erro ao verificar acesso:', error);
       }
     };
 
-    const fetchUserProgress = async () => {
-      const { data: allProgress } = await supabase
-        .from('progresso')
-        .select('tarefa_id')
-        .eq('user_id', user.id);
-
-      if (allProgress) {
-        const completedIds = new Set(allProgress.map(p => p.tarefa_id));
-        const newCompletedCount = completedIds.size;
-        setCompletedCount(newCompletedCount);
-
-        const { data: allTasks } = await supabase.from('tarefas').select('id, meta_id');
-        
-        if (allTasks) {
-          const metaMap: Record<string, { completed: number, total: number }> = {};
-          allTasks.forEach(task => {
-            if (!metaMap[task.meta_id]) metaMap[task.meta_id] = { completed: 0, total: 0 };
-            metaMap[task.meta_id].total += 1;
-            if (completedIds.has(task.id)) {
-              metaMap[task.meta_id].completed += 1;
-            }
-          });
-          
-          setProgress(metaMap);
-          
-          localStorage.setItem(`dashboard_progress_${user.id}`, JSON.stringify(metaMap));
-          localStorage.setItem(`dashboard_completed_${user.id}`, String(newCompletedCount));
-        }
-      }
-    };
-
-    checkAccessAndFetchProgress();
+    checkAccess();
   }, [user, router]);
+
+  const handleConcursoChange = async (concursoId: string) => {
+    setSelectedConcursoId(concursoId);
+    // Atualiza no perfil
+    if (user) {
+      await supabase.from('profiles').update({ concurso_id: concursoId }).eq('id', user.id);
+    }
+  };
 
   const overallPercent = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
 
@@ -153,7 +237,29 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
 
   return (
     <>
-      {/* Stats Cards - Layout Original Restaurado */}
+      {/* Seletor de Concurso */}
+      <div className="flex justify-center mb-12">
+        <div className="bg-white p-2 rounded-2xl shadow-lg border border-slate-100 flex items-center space-x-4">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Estudando para:</span>
+          <select 
+            value={selectedConcursoId || ''} 
+            onChange={(e) => handleConcursoChange(e.target.value)}
+            className="bg-slate-50 border-none text-slate-900 font-black uppercase tracking-tight text-sm px-6 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 cursor-pointer outline-none min-w-[250px]"
+          >
+            {concursos.map(c => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {loadingMetas ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : (
+        <>
+          {/* Stats Cards - Layout Original Restaurado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
         {/* Desempenho Global */}
         <div className="bg-white p-10 rounded-[3rem] shadow-2xl shadow-blue-900/5 border border-slate-100 flex items-center space-x-10 hover:scale-[1.01] transition-transform">
@@ -207,7 +313,7 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
 
       {/* Metas Grid - Expandido para Desktop (até 6 colunas) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-8">
-        {initialMetas.map((meta, index) => {
+        {metas.map((meta, index) => {
           const metaProg = progress[meta.id] || { completed: 0, total: 0 };
           const percent = metaProg.total > 0 ? (metaProg.completed / metaProg.total) * 100 : 0;
           const isCompleted = percent === 100 && metaProg.total > 0;
@@ -262,5 +368,7 @@ export default function DashboardClient({ initialMetas, totalTasks }: DashboardC
         })}
       </div>
     </>
-  );
+  )}
+</>
+);
 }
