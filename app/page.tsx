@@ -40,7 +40,7 @@ export default async function DashboardPage() {
       <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
         <div className="mb-24 flex flex-col items-center text-center">
           <div className="mb-6 relative">
-            <div className="relative h-[208px] w-[390px]">
+            <div className="relative h-[270px] w-[507px]">
               <Image 
                 src="/logo-projeto.png" 
                 alt="Logo Projeto Ser GCM" 
