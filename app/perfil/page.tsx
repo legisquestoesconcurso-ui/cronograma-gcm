@@ -158,7 +158,7 @@ export default function PerfilPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                    Estado
+                    Estado do Concurso
                   </label>
                   <select
                     name="estado"
@@ -175,9 +175,12 @@ export default function PerfilPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                    Município
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
+                    Município da GCM
                   </label>
+                  <p className="text-[10px] text-slate-400 font-bold mb-2">
+                    Qual o município da Guarda Municipal que você vai prestar?
+                  </p>
                   <input
                     type="text"
                     name="municipio"
@@ -192,14 +195,14 @@ export default function PerfilPage() {
 
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                  Concurso Pretendido
+                  Objetivo Adicional
                 </label>
                 <input
                   type="text"
                   name="concurso_pretendido"
                   value={formData.concurso_pretendido}
                   onChange={handleChange}
-                  placeholder="Ex: GCM São Paulo"
+                  placeholder="Ex: GCM Niterói, GCM Maricá ou GCM São Paulo"
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 text-slate-900 font-bold focus:border-blue-600 outline-none transition-all"
                   required
                 />

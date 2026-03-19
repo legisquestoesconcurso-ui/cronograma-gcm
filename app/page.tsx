@@ -30,6 +30,8 @@ async function getInitialData() {
 export default async function DashboardPage() {
   const { metas, totalTasks } = await getInitialData();
 
+  // Espaço reservado para o futuro botão de Suporte via WhatsApp
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
@@ -68,6 +70,8 @@ export default async function DashboardPage() {
             </p>
           </div>
         </div>
+
+        {/* Espaço reservado para o futuro botão de Suporte via WhatsApp */}
 
         {/* Componente de Cliente que gerencia o progresso individual */}
         <DashboardClient initialMetas={metas} totalTasks={totalTasks} />
