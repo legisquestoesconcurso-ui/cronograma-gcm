@@ -43,7 +43,7 @@ export default async function DashboardPage() {
             <img 
               src="/logo-projeto.png" 
               alt="Logo Projeto Ser GCM" 
-              className="w-[180px] h-auto mx-auto mb-4" 
+              className="w-[250px] h-auto mx-auto mb-4" 
             />
             <Link 
               href="/perfil"
