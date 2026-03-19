@@ -10,6 +10,27 @@ import { useRouter } from 'next/navigation';
 
 const ADMIN_EMAIL = 'legisquestoesconcurso@gmail.com';
 
+const MetaSkeleton = () => (
+  <div className="bg-white rounded-[2.5rem] shadow-xl border-2 border-slate-100 overflow-hidden animate-pulse">
+    <div className="p-8">
+      <div className="flex justify-end items-start mb-4 min-h-[1.5rem]">
+        <div className="w-8 h-8 bg-slate-100 rounded-full" />
+      </div>
+      <div className="h-6 bg-slate-100 rounded w-3/4 mb-6" />
+      <div className="space-y-6">
+        <div>
+          <div className="flex justify-between mb-3">
+            <div className="h-3 bg-slate-100 rounded w-1/4" />
+            <div className="h-3 bg-slate-100 rounded w-1/8" />
+          </div>
+          <div className="w-full bg-slate-100 h-2.5 rounded-full" />
+        </div>
+        <div className="h-12 bg-slate-100 rounded-2xl w-full" />
+      </div>
+    </div>
+  </div>
+);
+
 interface DashboardClientProps {
   initialMetas: any[];
   totalTasks: number;
@@ -82,55 +103,69 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
     const fetchConcursoData = async () => {
       setLoadingMetas(true);
       try {
-        // 1. Buscar Metas do Concurso
-        const { data: concursoMetas } = await supabase
-          .from('metas')
-          .select('id, nome_meta, ordem')
-          .eq('concurso_id', selectedConcursoId)
-          .order('ordem', { ascending: true });
+        // 1. Busca em Massa: Metas com contagem de tarefas e Progresso do Usuário em paralelo
+        const [metasRes, progressRes] = await Promise.all([
+          supabase
+            .from('metas')
+            .select(`
+              id, 
+              nome_meta, 
+              ordem,
+              tarefas (count)
+            `)
+            .eq('concurso_id', selectedConcursoId)
+            .order('ordem', { ascending: true }),
+          supabase
+            .from('user_progress')
+            .select('tarefa_id')
+            .eq('user_id', user.id)
+            .eq('concurso_id', selectedConcursoId)
+        ]);
 
-        if (concursoMetas) {
-          setMetas(concursoMetas);
-        }
+        if (metasRes.error) throw metasRes.error;
+        if (progressRes.error) throw progressRes.error;
 
-        // 2. Buscar Todas as Tarefas do Concurso (para contagem por meta e global)
-        const { data: allTasks } = await supabase
-          .from('tarefas')
-          .select('id, meta_id')
-          .eq('concurso_id', selectedConcursoId);
+        const concursoMetas = metasRes.data || [];
+        const allProgress = progressRes.data || [];
+        const completedIds = new Set(allProgress.map(p => p.tarefa_id));
 
-        const totalTasksCount = allTasks?.length || 0;
-        setTotalTasks(totalTasksCount);
-
-        // 3. Buscar Progresso do Usuário
-        const { data: allProgress } = await supabase
-          .from('user_progress')
-          .select('tarefa_id')
-          .eq('user_id', user.id)
-          .eq('concurso_id', selectedConcursoId);
-
-        const completedIds = new Set(allProgress?.map(p => p.tarefa_id) || []);
-        setCompletedCount(completedIds.size);
-
-        // 4. Mapear Progresso por Meta
+        // 2. Mapear Progresso por Meta
         const metaMap: Record<string, { completed: number, total: number }> = {};
-        
-        // Inicializar com 0 para todas as metas encontradas
-        concursoMetas?.forEach(m => {
-          metaMap[m.id] = { completed: 0, total: 0 };
+        let totalTasksCount = 0;
+
+        concursoMetas.forEach((m: any) => {
+          // O Supabase retorna o count como um array ou objeto dependendo da configuração
+          // Geralmente tarefas: [{ count: X }] ou tarefas: { count: X }
+          const taskCount = Array.isArray(m.tarefas) ? (m.tarefas[0]?.count || 0) : (m.tarefas?.count || 0);
+          
+          metaMap[m.id] = { 
+            completed: 0, // Precisamos buscar o progresso específico por meta se quisermos ser 100% precisos sem carregar todas as tarefas
+            total: taskCount 
+          };
+          totalTasksCount += taskCount;
         });
 
-        // Contabilizar totais e concluídos
-        if (allTasks) {
-          allTasks.forEach(task => {
-            if (!metaMap[task.meta_id]) metaMap[task.meta_id] = { completed: 0, total: 0 };
-            metaMap[task.meta_id].total += 1;
-            if (completedIds.has(task.id)) {
+        // Para saber quantas tarefas estão concluídas POR META, ainda precisamos saber quais tarefas pertencem a qual meta.
+        // Se quisermos evitar carregar todas as tarefas, poderíamos fazer um join no user_progress.
+        // Mas para manter a simplicidade e performance (já que o número de tarefas concluídas costuma ser menor),
+        // vamos buscar apenas as tarefas concluídas com seu meta_id.
+        
+        const { data: completedTasksWithMeta } = await supabase
+          .from('tarefas')
+          .select('id, meta_id')
+          .in('id', Array.from(completedIds));
+
+        if (completedTasksWithMeta) {
+          completedTasksWithMeta.forEach(task => {
+            if (metaMap[task.meta_id]) {
               metaMap[task.meta_id].completed += 1;
             }
           });
         }
 
+        setMetas(concursoMetas);
+        setTotalTasks(totalTasksCount);
+        setCompletedCount(completedIds.size);
         setProgress(metaMap);
         
         localStorage.setItem(`dashboard_progress_${user.id}_${selectedConcursoId}`, JSON.stringify(metaMap));
@@ -252,8 +287,10 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
       </div>
 
       {loadingMetas ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-8">
+          {[...Array(6)].map((_, i) => (
+            <MetaSkeleton key={i} />
+          ))}
         </div>
       ) : (
         <>

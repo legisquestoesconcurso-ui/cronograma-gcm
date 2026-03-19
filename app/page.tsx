@@ -10,21 +10,21 @@ import { User } from 'lucide-react';
 export const revalidate = 60;
 
 async function getInitialData() {
-  // 1. Buscar todos os concursos disponíveis
-  const { data: concursos } = await supabase
-    .from('concursos')
-    .select('id, nome, ativo')
-    .order('nome', { ascending: true });
-
-  // 2. Buscar total de tarefas global (inicial)
-  const { count: totalTasks } = await supabase
-    .from('tarefas')
-    .select('*', { count: 'exact', head: true });
+  // Busca em massa inicial: Concursos e Total de Tarefas em paralelo
+  const [concursosRes, totalTasksRes] = await Promise.all([
+    supabase
+      .from('concursos')
+      .select('id, nome, ativo')
+      .order('nome', { ascending: true }),
+    supabase
+      .from('tarefas')
+      .select('*', { count: 'exact', head: true })
+  ]);
 
   return {
-    concursos: concursos || [],
-    metas: [], // Deixamos o DashboardClient carregar as metas do concurso correto
-    totalTasks: totalTasks || 0
+    concursos: concursosRes.data || [],
+    metas: [], // O DashboardClient gerencia as metas específicas do usuário
+    totalTasks: totalTasksRes.count || 0
   };
 }
 
