@@ -40,15 +40,11 @@ export default async function DashboardPage() {
       <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
         <div className="mb-24 flex flex-col items-center text-center">
           <div className="mb-6 relative">
-            <div className="relative h-[270px] w-[507px]">
-              <Image 
-                src="/logo-projeto.png" 
-                alt="Logo Projeto Ser GCM" 
-                fill
-                className="object-contain"
-                referrerPolicy="no-referrer"
-              />
-            </div>
+            <img 
+              src="/logo-projeto.png" 
+              alt="Logo Projeto Ser GCM" 
+              className="w-[180px] h-auto mx-auto mb-4" 
+            />
             <Link 
               href="/perfil"
               className="absolute -right-16 top-1/2 -translate-y-1/2 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 text-slate-900 hover:text-blue-600 transition-all group flex items-center justify-center"
