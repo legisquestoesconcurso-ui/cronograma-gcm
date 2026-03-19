@@ -13,7 +13,7 @@ async function getInitialData() {
   // 1. Buscar todos os concursos disponíveis
   const { data: concursos } = await supabase
     .from('concursos')
-    .select('id, nome')
+    .select('id, nome, ativo')
     .order('nome', { ascending: true });
 
   // 2. Buscar todas as metas ordenadas por ordem (inicialmente pegamos as do concurso padrão ou as primeiras)

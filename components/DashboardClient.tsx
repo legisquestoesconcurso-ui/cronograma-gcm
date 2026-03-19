@@ -29,6 +29,9 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
   const [progress, setProgress] = useState<Record<string, any>>({});
   const [completedCount, setCompletedCount] = useState(0);
 
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  const visibleConcursos = concursos.filter(c => isAdmin || c.ativo);
+
   // 1. Determinar concurso inicial e carregar cache
   useEffect(() => {
     if (typeof window !== 'undefined' && user) {
@@ -41,7 +44,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
 
   // 1. Determinar concurso inicial
   useEffect(() => {
-    if (!user || !concursos.length) return;
+    if (!user || !visibleConcursos.length) return;
 
     const determineInitialConcurso = async () => {
       // Buscar concurso_id no perfil
@@ -52,20 +55,25 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
         .single();
 
       if (profile?.concurso_id) {
-        setSelectedConcursoId(profile.concurso_id);
-      } else {
-        // Se não tiver, busca o "Pré-Edital Geral"
-        const preEdital = concursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || concursos[0];
-        if (preEdital) {
-          setSelectedConcursoId(preEdital.id);
-          // Salva no perfil para as próximas vezes
-          await supabase.from('profiles').update({ concurso_id: preEdital.id }).eq('id', user.id);
+        // Verifica se o concurso do perfil está na lista de visíveis
+        const isVisible = visibleConcursos.some(c => c.id === profile.concurso_id);
+        if (isVisible) {
+          setSelectedConcursoId(profile.concurso_id);
+          return;
         }
+      }
+
+      // Se não tiver ou não for visível, busca o "Pré-Edital Geral" entre os visíveis
+      const preEdital = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || visibleConcursos[0];
+      if (preEdital) {
+        setSelectedConcursoId(preEdital.id);
+        // Salva no perfil para as próximas vezes
+        await supabase.from('profiles').update({ concurso_id: preEdital.id }).eq('id', user.id);
       }
     };
 
     determineInitialConcurso();
-  }, [user, concursos]);
+  }, [user, visibleConcursos]);
 
   // 2. Carregar Metas e Progresso quando o concurso mudar
   useEffect(() => {
@@ -236,7 +244,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
             onChange={(e) => handleConcursoChange(e.target.value)}
             className="bg-slate-50 border-none text-slate-900 font-black uppercase tracking-tight text-sm px-6 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 cursor-pointer outline-none min-w-[250px]"
           >
-            {concursos.map(c => (
+            {visibleConcursos.map(c => (
               <option key={c.id} value={c.id}>{c.nome}</option>
             ))}
           </select>
