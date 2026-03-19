@@ -41,7 +41,7 @@ export default async function DashboardPage() {
         <div className="mb-24 flex flex-col items-center text-center">
           <div className="mb-6 relative">
             <img 
-              src="/logo-projeto.png" 
+              src="https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/logo-projeto.png" 
               alt="Logo Projeto Ser GCM" 
               className="w-[250px] h-auto mx-auto mb-4" 
             />
