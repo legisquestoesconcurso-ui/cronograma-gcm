@@ -16,21 +16,14 @@ async function getInitialData() {
     .select('id, nome, ativo')
     .order('nome', { ascending: true });
 
-  // 2. Buscar todas as metas ordenadas por ordem (inicialmente pegamos as do concurso padrão ou as primeiras)
-  // Nota: O DashboardClient vai gerenciar a troca dinâmica, mas aqui pegamos um set inicial
-  const { data: metas } = await supabase
-    .from('metas')
-    .select('id, nome_meta, ordem, concurso_id')
-    .order('ordem', { ascending: true });
-
-  // 3. Buscar total de tarefas para o contador global
+  // 2. Buscar total de tarefas global (inicial)
   const { count: totalTasks } = await supabase
     .from('tarefas')
     .select('*', { count: 'exact', head: true });
 
   return {
     concursos: concursos || [],
-    metas: metas || [],
+    metas: [], // Deixamos o DashboardClient carregar as metas do concurso correto
     totalTasks: totalTasks || 0
   };
 }
