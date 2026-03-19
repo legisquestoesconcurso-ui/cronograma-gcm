@@ -93,48 +93,48 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
           setMetas(concursoMetas);
         }
 
-        // 2. Buscar Total de Tarefas do Concurso (usando concurso_id na tabela tarefas)
-        const { count: concursoTotalTasks } = await supabase
+        // 2. Buscar Todas as Tarefas do Concurso (para contagem por meta e global)
+        const { data: allTasks } = await supabase
           .from('tarefas')
-          .select('*', { count: 'exact', head: true })
+          .select('id, meta_id')
           .eq('concurso_id', selectedConcursoId);
 
-        setTotalTasks(concursoTotalTasks || 0);
+        const totalTasksCount = allTasks?.length || 0;
+        setTotalTasks(totalTasksCount);
 
-        // 3. Buscar Progresso (tabela user_progress filtrando por user_id e concurso_id)
+        // 3. Buscar Progresso do Usuário
         const { data: allProgress } = await supabase
           .from('user_progress')
           .select('tarefa_id')
           .eq('user_id', user.id)
           .eq('concurso_id', selectedConcursoId);
 
-        if (allProgress) {
-          const completedIds = new Set(allProgress.map(p => p.tarefa_id));
-          const newCompletedCount = completedIds.size;
-          setCompletedCount(newCompletedCount);
+        const completedIds = new Set(allProgress?.map(p => p.tarefa_id) || []);
+        setCompletedCount(completedIds.size);
 
-          // Buscar tarefas para mapear progresso por meta
-          const { data: allTasks } = await supabase
-            .from('tarefas')
-            .select('id, meta_id')
-            .eq('concurso_id', selectedConcursoId);
-          
-          if (allTasks) {
-            const metaMap: Record<string, { completed: number, total: number }> = {};
-            allTasks.forEach(task => {
-              if (!metaMap[task.meta_id]) metaMap[task.meta_id] = { completed: 0, total: 0 };
-              metaMap[task.meta_id].total += 1;
-              if (completedIds.has(task.id)) {
-                metaMap[task.meta_id].completed += 1;
-              }
-            });
-            
-            setProgress(metaMap);
-            
-            localStorage.setItem(`dashboard_progress_${user.id}_${selectedConcursoId}`, JSON.stringify(metaMap));
-            localStorage.setItem(`dashboard_completed_${user.id}_${selectedConcursoId}`, String(newCompletedCount));
-          }
+        // 4. Mapear Progresso por Meta
+        const metaMap: Record<string, { completed: number, total: number }> = {};
+        
+        // Inicializar com 0 para todas as metas encontradas
+        concursoMetas?.forEach(m => {
+          metaMap[m.id] = { completed: 0, total: 0 };
+        });
+
+        // Contabilizar totais e concluídos
+        if (allTasks) {
+          allTasks.forEach(task => {
+            if (!metaMap[task.meta_id]) metaMap[task.meta_id] = { completed: 0, total: 0 };
+            metaMap[task.meta_id].total += 1;
+            if (completedIds.has(task.id)) {
+              metaMap[task.meta_id].completed += 1;
+            }
+          });
         }
+
+        setProgress(metaMap);
+        
+        localStorage.setItem(`dashboard_progress_${user.id}_${selectedConcursoId}`, JSON.stringify(metaMap));
+        localStorage.setItem(`dashboard_completed_${user.id}_${selectedConcursoId}`, String(completedIds.size));
       } catch (error) {
         console.error('Erro ao carregar dados do concurso:', error);
       } finally {
@@ -341,7 +341,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
                   <div className="space-y-6">
                     <div>
                       <div className="flex justify-between text-[11px] font-black uppercase tracking-widest mb-3">
-                        <span className="text-slate-400">{metaProg.completed}/{metaProg.total || '--'} Tarefas</span>
+                        <span className="text-slate-400">{metaProg.completed}/{metaProg.total} Tarefas</span>
                         <span className={isCompleted ? 'text-emerald-600' : 'text-blue-600'}>{percent.toFixed(0)}%</span>
                       </div>
                       <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
