@@ -26,21 +26,18 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
   const [loadingMetas, setLoadingMetas] = useState(false);
   
   // Inicializa o estado a partir do LocalStorage para evitar "loading" ao alternar abas
-  const [progress, setProgress] = useState<Record<string, any>>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem(`dashboard_progress_${user?.id || 'guest'}_${selectedConcursoId || 'default'}`);
-      return cached ? JSON.parse(cached) : {};
+  const [progress, setProgress] = useState<Record<string, any>>({});
+  const [completedCount, setCompletedCount] = useState(0);
+
+  // 1. Determinar concurso inicial e carregar cache
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user) {
+      const cachedProgress = localStorage.getItem(`dashboard_progress_${user.id}_${selectedConcursoId || 'default'}`);
+      const cachedCompleted = localStorage.getItem(`dashboard_completed_${user.id}_${selectedConcursoId || 'default'}`);
+      if (cachedProgress) setProgress(JSON.parse(cachedProgress));
+      if (cachedCompleted) setCompletedCount(Number(cachedCompleted));
     }
-    return {};
-  });
-  
-  const [completedCount, setCompletedCount] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem(`dashboard_completed_${user?.id || 'guest'}_${selectedConcursoId || 'default'}`);
-      return cached ? Number(cached) : 0;
-    }
-    return 0;
-  });
+  }, [user, selectedConcursoId]);
 
   // 1. Determinar concurso inicial
   useEffect(() => {
@@ -88,41 +85,31 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
           setMetas(concursoMetas);
         }
 
-        // 2. Buscar Total de Tarefas do Concurso
-        const metaIds = concursoMetas?.map(m => m.id) || [];
+        // 2. Buscar Total de Tarefas do Concurso (usando concurso_id na tabela tarefas)
         const { count: concursoTotalTasks } = await supabase
           .from('tarefas')
           .select('*', { count: 'exact', head: true })
-          .in('meta_id', metaIds);
+          .eq('concurso_id', selectedConcursoId);
 
         setTotalTasks(concursoTotalTasks || 0);
 
-        // 3. Buscar Progresso (tabela user_progress conforme solicitado)
-        // Tentamos user_progress, se falhar usamos progresso
-        let { data: allProgress, error: progressError } = await supabase
+        // 3. Buscar Progresso (tabela user_progress filtrando por user_id e concurso_id)
+        const { data: allProgress } = await supabase
           .from('user_progress')
           .select('tarefa_id')
           .eq('user_id', user.id)
           .eq('concurso_id', selectedConcursoId);
-
-        // Fallback para tabela 'progresso' se 'user_progress' não existir ou der erro
-        if (progressError || !allProgress) {
-          const { data: fallbackProgress } = await supabase
-            .from('progresso')
-            .select('tarefa_id')
-            .eq('user_id', user.id);
-          allProgress = fallbackProgress;
-        }
 
         if (allProgress) {
           const completedIds = new Set(allProgress.map(p => p.tarefa_id));
           const newCompletedCount = completedIds.size;
           setCompletedCount(newCompletedCount);
 
+          // Buscar tarefas para mapear progresso por meta
           const { data: allTasks } = await supabase
             .from('tarefas')
             .select('id, meta_id')
-            .in('meta_id', metaIds);
+            .eq('concurso_id', selectedConcursoId);
           
           if (allTasks) {
             const metaMap: Record<string, { completed: number, total: number }> = {};
@@ -164,16 +151,19 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
           .eq('id', user.id)
           .single();
 
-        if (!isAdmin) {
-          if (!profileData || profileData.subscription_status !== 'active') {
-            setIsSubscriptionActive(false);
-            return;
-          }
+        if (isAdmin) {
+          setIsSubscriptionActive(true);
+          return;
+        }
+
+        if (!profileData || profileData.subscription_status !== 'active') {
+          setIsSubscriptionActive(false);
+          return;
         }
         
         setIsSubscriptionActive(true);
 
-        if (!profileData || !profileData.whatsapp) {
+        if (!profileData.whatsapp) {
           router.push('/perfil');
           return;
         }

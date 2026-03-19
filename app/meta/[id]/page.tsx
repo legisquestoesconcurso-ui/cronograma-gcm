@@ -107,14 +107,34 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
           }
         }
 
-        // 4. Fetch Latest Progress for all tasks using 'progresso' table for THIS user
+        // 4. Fetch Latest Progress for all tasks using 'user_progress' table for THIS user and concurso
         const taskIds = finalTarefas!.map(t => t.id);
-        const { data: progressData, error: progressError } = await supabase
-          .from('progresso')
-          .select('*')
-          .in('tarefa_id', taskIds)
-          .eq('user_id', user.id)
-          .order('data_estudo', { ascending: false });
+        let progressData = null;
+        let progressError = null;
+
+        if (metaData?.concurso_id) {
+          const { data, error } = await supabase
+            .from('user_progress')
+            .select('*')
+            .in('tarefa_id', taskIds)
+            .eq('user_id', user.id)
+            .eq('concurso_id', metaData.concurso_id)
+            .order('data_estudo', { ascending: false });
+          progressData = data;
+          progressError = error;
+        }
+
+        // Fallback to 'progresso' if no data in 'user_progress' or error
+        if (!progressData || progressData.length === 0) {
+          const { data, error } = await supabase
+            .from('progresso')
+            .select('*')
+            .in('tarefa_id', taskIds)
+            .eq('user_id', user.id)
+            .order('data_estudo', { ascending: false });
+          progressData = data;
+          progressError = error;
+        }
         
         if (progressError) throw progressError;
 
@@ -207,13 +227,18 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
 
       // 2. Insert into 'user_progress' (New Multi-Concurso Table)
       if (concursoId) {
-        await supabase.from('user_progress').insert({
-          tarefa_id: taskId,
-          user_id: user.id,
-          concurso_id: concursoId,
-          total_questoes: Number(total),
-          acertos: Number(correct),
-        }).catch(err => console.warn("user_progress table might not exist yet:", err));
+        try {
+          const { error: upError } = await supabase.from('user_progress').insert({
+            tarefa_id: taskId,
+            user_id: user.id,
+            concurso_id: concursoId,
+            total_questoes: Number(total),
+            acertos: Number(correct),
+          });
+          if (upError) console.warn("user_progress insert error:", upError);
+        } catch (err) {
+          console.warn("user_progress table might not exist yet:", err);
+        }
       }
 
       // Clear the inputs for this task after successful save
