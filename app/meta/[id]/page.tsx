@@ -525,63 +525,77 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
 
                         {/* Coluna Direita: Gráfico e Frases */}
                         <div className="flex-1 w-full">
-                          {(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) && (
-                            <div className="flex flex-col gap-8 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm animate-in fade-in zoom-in-95 duration-500 min-h-[400px] justify-between">
-                              <div className="text-center">
-                                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-widest">
-                                  Desempenho da última tarefa realizada
-                                </span>
-                              </div>
+                          <div className={`flex flex-col gap-8 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm transition-all duration-500 min-h-[400px] justify-between ${!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? 'opacity-30' : 'animate-in fade-in zoom-in-95'}`}>
+                            <div className="text-center">
+                              <span className="text-[11px] text-slate-400 font-medium uppercase tracking-widest">
+                                Desempenho da última tarefa realizada
+                              </span>
+                            </div>
 
-                              <div className="flex flex-col items-center gap-8">
-                                {/* Gráfico Circular */}
-                                <div className="relative w-32 h-32">
-                                  <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="3.5" />
-                                    <circle
-                                      cx="18" cy="18" r="15.915" fill="transparent" stroke={currentPercent > 75 ? '#10b981' : currentPercent >= 50 ? '#f59e0b' : '#ef4444'} strokeWidth="3.5"
-                                      strokeDasharray={`${currentPercent} ${100 - currentPercent}`}
-                                      strokeLinecap="round"
-                                      className="transition-all duration-1000 ease-out"
-                                    />
-                                  </svg>
-                                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-2xl font-extrabold text-slate-900 tracking-tighter">{currentPercent.toFixed(0)}%</span>
-                                  </div>
-                                </div>
-
-                                {/* Caixas de Acertos e Erros */}
-                                <div className="grid grid-cols-2 gap-4 w-full max-w-[280px]">
-                                  <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex flex-col items-center justify-center text-center">
-                                    <span className="block text-[8px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Acertos</span>
-                                    <span className="text-xl font-bold text-emerald-700">{currentCorrect}</span>
-                                  </div>
-                                  <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex flex-col items-center justify-center text-center">
-                                    <span className="block text-[8px] font-bold text-red-600 uppercase tracking-widest mb-1">Erros</span>
-                                    <span className="text-xl font-bold text-red-700">{currentIncorrect}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Progresso</span>
-                                  <span className={`text-[10px] font-extrabold uppercase ${getTextColor(currentPercent)}`}>
-                                    {currentPercent.toFixed(1)}% de aproveitamento
+                            <div className="flex flex-col items-center gap-8">
+                              {/* Gráfico Circular */}
+                              <div className="relative w-32 h-32">
+                                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                                  <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="3.5" />
+                                  <circle
+                                    cx="18" cy="18" r="15.915" fill="transparent" 
+                                    stroke={!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? '#cbd5e1' : (currentPercent > 75 ? '#10b981' : currentPercent >= 50 ? '#f59e0b' : '#ef4444')} 
+                                    strokeWidth="3.5"
+                                    strokeDasharray={`${(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? currentPercent : 0} ${100 - ((task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? currentPercent : 0)}`}
+                                    strokeLinecap="round"
+                                    className="transition-all duration-1000 ease-out"
+                                  />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <span className="text-2xl font-extrabold text-slate-900 tracking-tighter">
+                                    {(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? `${currentPercent.toFixed(0)}%` : '0%'}
                                   </span>
                                 </div>
-                                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner border border-white">
-                                  <div 
-                                    className={`h-full transition-all duration-1000 ease-out ${getBarColor(currentPercent)}`} 
-                                    style={{ width: `${currentPercent}%` }} 
-                                  />
+                              </div>
+
+                              {/* Caixas de Acertos e Erros */}
+                              <div className="grid grid-cols-2 gap-4 w-full max-w-[280px]">
+                                <div className={`${!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? 'bg-slate-50 border-slate-100' : 'bg-emerald-50 border-emerald-100'} p-4 rounded-2xl border flex flex-col items-center justify-center text-center`}>
+                                  <span className={`block text-[8px] font-bold uppercase tracking-widest mb-1 ${!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? 'text-slate-400' : 'text-emerald-600'}`}>Acertos</span>
+                                  <span className={`text-xl font-bold ${!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? 'text-slate-400' : 'text-emerald-700'}`}>
+                                    {(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? currentCorrect : '-'}
+                                  </span>
                                 </div>
-                                <p className={`text-[11px] font-medium leading-relaxed text-center px-2 ${getTextColor(currentPercent)}`}>
-                                  {getMotivationalPhrase(currentPercent)}
-                                </p>
+                                <div className={`${!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? 'bg-slate-50 border-slate-100' : 'bg-red-50 border-red-100'} p-4 rounded-2xl border flex flex-col items-center justify-center text-center`}>
+                                  <span className={`block text-[8px] font-bold uppercase tracking-widest mb-1 ${!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? 'text-slate-400' : 'text-red-600'}`}>Erros</span>
+                                  <span className={`text-xl font-bold ${!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? 'text-slate-400' : 'text-red-700'}`}>
+                                    {(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? currentIncorrect : '-'}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          )}
+
+                            <div className="space-y-4">
+                              {!(task.completed || (inputs[task.id]?.total && inputs[task.id]?.correct)) ? (
+                                <p className="text-[11px] font-medium leading-relaxed text-center px-2 text-slate-400 italic">
+                                  Os resultados do seu desempenho aparecerão aqui após salvar
+                                </p>
+                              ) : (
+                                <>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Progresso</span>
+                                    <span className={`text-[10px] font-extrabold uppercase ${getTextColor(currentPercent)}`}>
+                                      {currentPercent.toFixed(1)}% de aproveitamento
+                                    </span>
+                                  </div>
+                                  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner border border-white">
+                                    <div 
+                                      className={`h-full transition-all duration-1000 ease-out ${getBarColor(currentPercent)}`} 
+                                      style={{ width: `${currentPercent}%` }} 
+                                    />
+                                  </div>
+                                  <p className={`text-[11px] font-medium leading-relaxed text-center px-2 ${getTextColor(currentPercent)}`}>
+                                    {getMotivationalPhrase(currentPercent)}
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
