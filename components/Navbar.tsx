@@ -13,11 +13,13 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <Link href="/" className="flex items-center">
-            <img 
-              src="https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/logo-projeto.png" 
-              alt="Projeto ser GCM" 
-              className="h-10 w-auto p-1 object-contain brightness-0 invert"
-            />
+            <div className="bg-white p-2 rounded-md shadow-md">
+              <img 
+                src="https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/logo-projeto.png" 
+                alt="Projeto ser GCM" 
+                className="h-10 w-auto object-contain"
+              />
+            </div>
           </Link>
 
           <div className="flex items-center space-x-4">
