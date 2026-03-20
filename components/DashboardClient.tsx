@@ -99,18 +99,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
 
   // 2. Carregar Metas e Progresso quando o concurso mudar
   useEffect(() => {
-    if (!user) return;
-
-    // Garantia de concurso padrão se estiver vazio
-    if (!selectedConcursoId && visibleConcursos.length > 0) {
-      const preEdital = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || visibleConcursos[0];
-      if (preEdital) {
-        setSelectedConcursoId(preEdital.id);
-        return;
-      }
-    }
-
-    if (!selectedConcursoId) return;
+    if (!user || !selectedConcursoId) return;
 
     const fetchConcursoData = async () => {
       setLoadingMetas(true);
@@ -127,29 +116,18 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
           .eq('concurso_id', selectedConcursoId)
           .order('ordem', { ascending: true });
 
-        if (metasError) {
-          console.error('Erro ao buscar metas:', metasError);
-          setMetas([]);
-          setLoadingMetas(false);
-          return;
-        }
+        if (metasError) throw metasError;
 
         const concursoMetas = metasData || [];
 
         // 2. Busca de Progresso (Apenas na tabela 'progresso')
-        let allProgress: any[] = [];
-        try {
-          const { data: pData, error: pError } = await supabase
-            .from('progresso')
-            .select('tarefa_id')
-            .eq('user_id', user.id);
-          
-          if (pError) throw pError;
-          allProgress = pData || [];
-        } catch (progError) {
-          console.warn('Erro ao buscar progresso na tabela progresso:', progError);
-        }
-
+        const { data: pData, error: pError } = await supabase
+          .from('progresso')
+          .select('tarefa_id')
+          .eq('user_id', user.id);
+        
+        if (pError) throw pError;
+        const allProgress = pData || [];
         const completedIds = new Set(allProgress.map(p => p.tarefa_id));
 
         // 3. Mapear Progresso por Meta
@@ -158,31 +136,23 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
 
         concursoMetas.forEach((m: any) => {
           const taskCount = Array.isArray(m.tarefas) ? (m.tarefas[0]?.count || 0) : (m.tarefas?.count || 0);
-          
-          metaMap[m.id] = { 
-            completed: 0,
-            total: taskCount 
-          };
+          metaMap[m.id] = { completed: 0, total: taskCount };
           totalTasksCount += taskCount;
         });
 
-        // Buscar meta_id das tarefas concluídas para distribuir o progresso
+        // Buscar meta_id das tarefas concluídas
         if (completedIds.size > 0) {
-          try {
-            const { data: completedTasksWithMeta } = await supabase
-              .from('tarefas')
-              .select('id, meta_id')
-              .in('id', Array.from(completedIds));
+          const { data: completedTasksWithMeta } = await supabase
+            .from('tarefas')
+            .select('id, meta_id')
+            .in('id', Array.from(completedIds));
 
-            if (completedTasksWithMeta) {
-              completedTasksWithMeta.forEach(task => {
-                if (metaMap[task.meta_id]) {
-                  metaMap[task.meta_id].completed += 1;
-                }
-              });
-            }
-          } catch (err) {
-            console.warn('Erro ao mapear tarefas concluídas para metas:', err);
+          if (completedTasksWithMeta) {
+            completedTasksWithMeta.forEach(task => {
+              if (metaMap[task.meta_id]) {
+                metaMap[task.meta_id].completed += 1;
+              }
+            });
           }
         }
 
@@ -191,7 +161,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
         setCompletedCount(completedIds.size);
         setProgress(metaMap);
       } catch (error) {
-        console.error('Erro crítico ao carregar dados do concurso:', error);
+        console.error('Erro ao carregar dados do concurso:', error);
         setMetas([]);
       } finally {
         setLoadingMetas(false);
@@ -199,7 +169,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
     };
 
     fetchConcursoData();
-  }, [user, selectedConcursoId, visibleConcursos]);
+  }, [selectedConcursoId, user?.id]);
 
   // 3. Verificar Acesso (Assinatura e Perfil)
   useEffect(() => {
