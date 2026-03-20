@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { Target, CheckCircle2, AlertCircle, CreditCard } from 'lucide-react';
@@ -46,50 +46,51 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
   const [totalTasks, setTotalTasks] = useState<number>(initialTotalTasks);
   const [loadingMetas, setLoadingMetas] = useState(false);
   
-  // Inicializa o estado a partir do LocalStorage para evitar "loading" ao alternar abas
   const [progress, setProgress] = useState<Record<string, any>>({});
   const [completedCount, setCompletedCount] = useState(0);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
-  const visibleConcursos = concursos.filter(c => isAdmin || c.ativo);
-
-  // 1. Determinar concurso inicial e carregar cache
-  useEffect(() => {
-    if (typeof window !== 'undefined' && user) {
-      const cachedProgress = localStorage.getItem(`dashboard_progress_${user.id}_${selectedConcursoId || 'default'}`);
-      const cachedCompleted = localStorage.getItem(`dashboard_completed_${user.id}_${selectedConcursoId || 'default'}`);
-      if (cachedProgress) setProgress(JSON.parse(cachedProgress));
-      if (cachedCompleted) setCompletedCount(Number(cachedCompleted));
-    }
-  }, [user, selectedConcursoId]);
+  const visibleConcursos = useMemo(() => 
+    concursos.filter(c => isAdmin || c.ativo),
+    [concursos, isAdmin]
+  );
 
   // 1. Determinar concurso inicial
   useEffect(() => {
     if (!user || !visibleConcursos.length) return;
 
     const determineInitialConcurso = async () => {
-      // Buscar concurso_id no perfil
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('concurso_id')
-        .eq('id', user.id)
-        .single();
+      try {
+        // Buscar concurso_id no perfil
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('concurso_id')
+          .eq('id', user.id)
+          .single();
 
-      if (profile?.concurso_id) {
-        // Verifica se o concurso do perfil está na lista de visíveis
-        const isVisible = visibleConcursos.some(c => c.id === profile.concurso_id);
-        if (isVisible) {
-          setSelectedConcursoId(profile.concurso_id);
-          return;
+        if (profile?.concurso_id) {
+          // Verifica se o concurso do perfil está na lista de visíveis
+          const isVisible = visibleConcursos.some(c => c.id === profile.concurso_id);
+          if (isVisible) {
+            setSelectedConcursoId(profile.concurso_id);
+            return;
+          }
         }
-      }
 
-      // Se não tiver ou não for visível, busca o "Pré-Edital Geral" entre os visíveis
-      const preEdital = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || visibleConcursos[0];
-      if (preEdital) {
-        setSelectedConcursoId(preEdital.id);
-        // Salva no perfil para as próximas vezes
-        await supabase.from('profiles').update({ concurso_id: preEdital.id }).eq('id', user.id);
+        // Se não tiver ou não for visível, busca o "Pré-Edital Geral" entre os visíveis
+        const preEdital = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || visibleConcursos[0];
+        if (preEdital) {
+          setSelectedConcursoId(preEdital.id);
+          // Salva no perfil para as próximas vezes
+          await supabase.from('profiles').update({ concurso_id: preEdital.id }).eq('id', user.id);
+        }
+      } catch (err) {
+        console.error('Erro ao determinar concurso inicial:', err);
+        // Fallback de segurança
+        if (visibleConcursos.length > 0) {
+          const fallback = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || visibleConcursos[0];
+          setSelectedConcursoId(fallback.id);
+        }
       }
     };
 
@@ -98,87 +99,107 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
 
   // 2. Carregar Metas e Progresso quando o concurso mudar
   useEffect(() => {
-    if (!user || !selectedConcursoId) return;
+    if (!user) return;
+
+    // Garantia de concurso padrão se estiver vazio
+    if (!selectedConcursoId && visibleConcursos.length > 0) {
+      const preEdital = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || visibleConcursos[0];
+      if (preEdital) {
+        setSelectedConcursoId(preEdital.id);
+        return;
+      }
+    }
+
+    if (!selectedConcursoId) return;
 
     const fetchConcursoData = async () => {
       setLoadingMetas(true);
       try {
-        // 1. Busca em Massa: Metas com contagem de tarefas e Progresso do Usuário em paralelo
-        const [metasRes, progressRes] = await Promise.all([
-          supabase
-            .from('metas')
-            .select(`
-              id, 
-              nome_meta, 
-              ordem,
-              tarefas (count)
-            `)
-            .eq('concurso_id', selectedConcursoId)
-            .order('ordem', { ascending: true }),
-          supabase
-            .from('user_progress')
+        // 1. Busca de Metas
+        const { data: metasData, error: metasError } = await supabase
+          .from('metas')
+          .select(`
+            id, 
+            nome_meta, 
+            ordem,
+            tarefas (count)
+          `)
+          .eq('concurso_id', selectedConcursoId)
+          .order('ordem', { ascending: true });
+
+        if (metasError) {
+          console.error('Erro ao buscar metas:', metasError);
+          setMetas([]);
+          setLoadingMetas(false);
+          return;
+        }
+
+        const concursoMetas = metasData || [];
+
+        // 2. Busca de Progresso (Apenas na tabela 'progresso')
+        let allProgress: any[] = [];
+        try {
+          const { data: pData, error: pError } = await supabase
+            .from('progresso')
             .select('tarefa_id')
-            .eq('user_id', user.id)
-            .eq('concurso_id', selectedConcursoId)
-        ]);
+            .eq('user_id', user.id);
+          
+          if (pError) throw pError;
+          allProgress = pData || [];
+        } catch (progError) {
+          console.warn('Erro ao buscar progresso na tabela progresso:', progError);
+        }
 
-        if (metasRes.error) throw metasRes.error;
-        if (progressRes.error) throw progressRes.error;
-
-        const concursoMetas = metasRes.data || [];
-        const allProgress = progressRes.data || [];
         const completedIds = new Set(allProgress.map(p => p.tarefa_id));
 
-        // 2. Mapear Progresso por Meta
+        // 3. Mapear Progresso por Meta
         const metaMap: Record<string, { completed: number, total: number }> = {};
         let totalTasksCount = 0;
 
         concursoMetas.forEach((m: any) => {
-          // O Supabase retorna o count como um array ou objeto dependendo da configuração
-          // Geralmente tarefas: [{ count: X }] ou tarefas: { count: X }
           const taskCount = Array.isArray(m.tarefas) ? (m.tarefas[0]?.count || 0) : (m.tarefas?.count || 0);
           
           metaMap[m.id] = { 
-            completed: 0, // Precisamos buscar o progresso específico por meta se quisermos ser 100% precisos sem carregar todas as tarefas
+            completed: 0,
             total: taskCount 
           };
           totalTasksCount += taskCount;
         });
 
-        // Para saber quantas tarefas estão concluídas POR META, ainda precisamos saber quais tarefas pertencem a qual meta.
-        // Se quisermos evitar carregar todas as tarefas, poderíamos fazer um join no user_progress.
-        // Mas para manter a simplicidade e performance (já que o número de tarefas concluídas costuma ser menor),
-        // vamos buscar apenas as tarefas concluídas com seu meta_id.
-        
-        const { data: completedTasksWithMeta } = await supabase
-          .from('tarefas')
-          .select('id, meta_id')
-          .in('id', Array.from(completedIds));
+        // Buscar meta_id das tarefas concluídas para distribuir o progresso
+        if (completedIds.size > 0) {
+          try {
+            const { data: completedTasksWithMeta } = await supabase
+              .from('tarefas')
+              .select('id, meta_id')
+              .in('id', Array.from(completedIds));
 
-        if (completedTasksWithMeta) {
-          completedTasksWithMeta.forEach(task => {
-            if (metaMap[task.meta_id]) {
-              metaMap[task.meta_id].completed += 1;
+            if (completedTasksWithMeta) {
+              completedTasksWithMeta.forEach(task => {
+                if (metaMap[task.meta_id]) {
+                  metaMap[task.meta_id].completed += 1;
+                }
+              });
             }
-          });
+          } catch (err) {
+            console.warn('Erro ao mapear tarefas concluídas para metas:', err);
+          }
         }
 
         setMetas(concursoMetas);
         setTotalTasks(totalTasksCount);
         setCompletedCount(completedIds.size);
         setProgress(metaMap);
-        
-        localStorage.setItem(`dashboard_progress_${user.id}_${selectedConcursoId}`, JSON.stringify(metaMap));
-        localStorage.setItem(`dashboard_completed_${user.id}_${selectedConcursoId}`, String(completedIds.size));
       } catch (error) {
-        console.error('Erro ao carregar dados do concurso:', error);
+        console.error('Erro crítico ao carregar dados do concurso:', error);
+        setMetas([]);
       } finally {
         setLoadingMetas(false);
       }
     };
 
     fetchConcursoData();
-  }, [user, selectedConcursoId]);
+  }, [user, selectedConcursoId, visibleConcursos]);
 
   // 3. Verificar Acesso (Assinatura e Perfil)
   useEffect(() => {
