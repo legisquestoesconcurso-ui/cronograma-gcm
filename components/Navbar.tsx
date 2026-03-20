@@ -16,8 +16,7 @@ export default function Navbar() {
             <img 
               src="https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/logo-projeto.png" 
               alt="Projeto ser GCM" 
-              style={{ width: '250px', height: 'auto' }}
-              className="object-contain"
+              className="h-10 w-auto p-1 object-contain brightness-0 invert"
             />
           </Link>
 
