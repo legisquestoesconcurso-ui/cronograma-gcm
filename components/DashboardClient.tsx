@@ -3,12 +3,35 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { Target, CheckCircle2, AlertCircle, CreditCard } from 'lucide-react';
+import { Target, CheckCircle2, AlertCircle, CreditCard, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 const ADMIN_EMAIL = 'legisquestoesconcurso@gmail.com';
+
+const MOTIVATIONAL_PHRASES = [
+  'O segredo da aprovação é a constância nas questões.',
+  'Seu propósito é maior do que o seu cansaço.',
+  'O segredo do sucesso é a constância no objetivo.',
+  'Treino duro, combate fácil. Estude agora para vibrar na posse.',
+  'A farda não é apenas um uniforme, é a recompensa da sua disciplina.',
+  'Cada página lida é um centímetro a mais de linha na sua futura farda.',
+  'O estudo é o preço da sua liberdade e do seu distintivo.',
+  'Desistir não é uma opção para quem nasceu para servir e proteger.',
+  'Estude enquanto eles dormem. Patrulhe enquanto eles sonham.',
+  'O cansaço é temporário, mas o cargo público é para sempre.',
+  'Disciplina é fazer o que precisa ser feito, mesmo quando você não quer.',
+  'Sua aprovação depende da sua renúncia hoje.',
+  'Onde há disciplina, há vitória.',
+  'A dor do estudo é passageira, mas a glória da aprovação é eterna.',
+  'Não pare até se orgulhar de você mesmo.',
+  'O sucesso é a soma de pequenos esforços repetidos dia após dia.',
+  'Acredite no processo. A sua hora vai chegar.',
+  'Foco na missão. O distintivo está logo ali.',
+  'A constância vence o talento quando o talento não tem constância.',
+  'Cada questão resolvida é um passo em direção à sua nomeação.'
+];
 
 const MetaSkeleton = () => (
   <div className="bg-white rounded-[2.5rem] shadow-xl border-2 border-slate-100 overflow-hidden animate-pulse">
@@ -48,6 +71,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
   
   const [progress, setProgress] = useState<Record<string, any>>({});
   const [completedCount, setCompletedCount] = useState(0);
+  const [motivationPhrase, setMotivationPhrase] = useState('');
 
   const isAdmin = user?.email === ADMIN_EMAIL;
   const visibleConcursos = useMemo(() => 
@@ -169,7 +193,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
     };
 
     fetchConcursoData();
-  }, [selectedConcursoId, user?.id]);
+  }, [selectedConcursoId, user, user?.id]);
 
   // 3. Verificar Acesso (Assinatura e Perfil)
   useEffect(() => {
@@ -207,7 +231,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
     };
 
     checkAccess();
-  }, [user, router]);
+  }, [user, router, user?.email]);
 
   const handleConcursoChange = async (concursoId: string) => {
     setSelectedConcursoId(concursoId);
@@ -216,6 +240,12 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
       await supabase.from('profiles').update({ concurso_id: concursoId }).eq('id', user.id);
     }
   };
+
+  // 4. Selecionar frase motivacional aleatória
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_PHRASES.length);
+    setMotivationPhrase(MOTIVATIONAL_PHRASES[randomIndex]);
+  }, []);
 
   const overallPercent = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
 
@@ -262,7 +292,7 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
   return (
     <>
       {/* Seletor de Concurso */}
-      <div className="flex justify-center mb-12">
+      <div className="flex justify-center mb-8">
         <div className="bg-white p-2 rounded-2xl shadow-lg border border-slate-100 flex items-center space-x-4">
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Estudando para:</span>
           <select 
@@ -274,6 +304,21 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
               <option key={c.id} value={c.id}>{c.nome}</option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Bizu do Dia */}
+      <div className="max-w-4xl mx-auto mb-12">
+        <div className="bg-blue-50/50 border-2 border-blue-100 rounded-[2rem] p-6 flex items-center gap-6 shadow-sm">
+          <div className="bg-blue-600 p-4 rounded-2xl shadow-lg shadow-blue-200 flex-shrink-0">
+            <ShieldCheck className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 mb-1">Bizu do Dia</p>
+            <p className="text-slate-700 font-bold italic text-lg leading-tight">
+              &quot;{motivationPhrase}&quot;
+            </p>
+          </div>
         </div>
       </div>
 
