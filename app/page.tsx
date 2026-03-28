@@ -34,10 +34,31 @@ export default async function DashboardPage() {
   // Espaço reservado para o futuro botão de Suporte via WhatsApp
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
+    <div className="min-h-screen relative bg-white">
+      {/* Camada de Fundo Fixa */}
+      <div 
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: 'url(https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/bg-patrulha.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'top center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed'
+        }}
+      />
       
-      <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
+      {/* Degradê de Proteção para Legibilidade */}
+      <div 
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, transparent 0%, transparent 25%, white 70%, white 100%)'
+        }}
+      />
+
+      <div className="relative z-10">
+        <Navbar />
+        
+        <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
         <div className="mb-24 flex flex-col items-center text-center">
           <div className="mb-6 relative">
             <img 
@@ -78,5 +99,6 @@ export default async function DashboardPage() {
         />
       </main>
     </div>
+  </div>
   );
 }
