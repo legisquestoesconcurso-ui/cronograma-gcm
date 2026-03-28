@@ -63,7 +63,7 @@ export default async function DashboardPage() {
 
           <div className="flex justify-center">
             <p className="text-blue-600 font-bold uppercase tracking-widest text-sm sm:text-base">
-              A farda não é apenas uma roupa, é um compromisso.
+              &ldquo;A aprovação não é para os mais inteligentes. É para os que não desistem.&rdquo;
             </p>
           </div>
         </div>

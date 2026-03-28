@@ -313,7 +313,7 @@ export default function MetaPage({ params }: { params: Promise<{ id: string }> }
             </p>
           </div>
           <p className="text-slate-500 font-normal uppercase text-[10px] tracking-widest">
-            Complete as 9 tarefas para bater sua meta diária
+            Complete as tarefas para bater sua meta diária
           </p>
         </div>
 
