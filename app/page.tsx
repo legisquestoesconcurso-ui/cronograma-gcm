@@ -41,7 +41,7 @@ export default async function DashboardPage() {
         style={{
           backgroundImage: 'url(https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/bg-patrulha.png)',
           backgroundSize: 'cover',
-          backgroundPosition: 'top center',
+          backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           backgroundAttachment: 'fixed'
         }}
