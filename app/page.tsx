@@ -34,7 +34,7 @@ export default async function DashboardPage() {
   // Espaço reservado para o futuro botão de Suporte via WhatsApp
 
   return (
-    <div className="min-h-screen relative bg-white">
+    <div className="min-h-screen relative bg-transparent">
       {/* Camada de Fundo Fixa */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none"
@@ -60,12 +60,14 @@ export default async function DashboardPage() {
         
         <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
         <div className="mb-24 flex flex-col items-center text-center">
-          <div className="mb-6 relative">
-            <img 
-              src="https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/logo-projeto.png" 
-              alt="Logo Projeto Ser GCM" 
-              className="w-[250px] h-auto mx-auto mb-4 mix-blend-multiply" 
-            />
+          <div className="mb-6 relative bg-transparent p-0">
+            <div className="mix-blend-multiply bg-transparent">
+              <img 
+                src="https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/logo-projeto.png" 
+                alt="Logo Projeto Ser GCM" 
+                className="w-[250px] h-auto mx-auto mb-4" 
+              />
+            </div>
             <Link 
               href="/perfil"
               className="absolute -right-16 top-1/2 -translate-y-1/2 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 text-slate-900 hover:text-blue-600 transition-all group flex items-center justify-center"
