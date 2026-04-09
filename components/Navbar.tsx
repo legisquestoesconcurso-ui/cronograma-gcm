@@ -26,10 +26,14 @@ export default function Navbar() {
           <div className="flex items-center space-x-6">
             {user ? (
               <div className="flex items-center space-x-6">
+                <Link 
+                  href="/perfil"
+                  className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl transition-all border border-slate-700 hover:border-amber-400 group"
+                >
+                  <UserIcon className="w-4 h-4 text-amber-400 group-hover:text-amber-300" />
+                  <span className="text-sm font-black uppercase tracking-widest hidden lg:inline">Meu Perfil</span>
+                </Link>
                 <div className="hidden md:flex items-center space-x-3 text-sm font-bold text-slate-300">
-                  <div className="bg-slate-800 p-2 rounded-lg">
-                    <UserIcon className="w-4 h-4 text-blue-400" />
-                  </div>
                   <span className="max-w-[180px] truncate">{user.email}</span>
                 </div>
                 <button

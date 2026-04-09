@@ -66,17 +66,6 @@ export default async function DashboardPage() {
                   className="w-48 sm:w-64 h-auto mx-auto" 
                 />
               </div>
-              
-              <Link 
-                href="/perfil"
-                className="absolute -right-12 sm:-right-20 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm p-3 sm:p-4 rounded-2xl shadow-xl border border-slate-200 text-slate-900 hover:text-blue-600 hover:scale-110 transition-all group flex items-center justify-center"
-                title="Meu Perfil"
-              >
-                <User className="w-5 h-5 sm:w-6 h-6" />
-                <span className="absolute left-full ml-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                  Meu Perfil
-                </span>
-              </Link>
             </div>
             
             <div className="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 shadow-2xl max-w-3xl w-full">
