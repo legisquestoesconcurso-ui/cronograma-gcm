@@ -69,8 +69,8 @@ export default async function DashboardPage() {
             </div>
             
             <div className="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 shadow-2xl max-w-3xl w-full">
-              <h1 className="text-4xl sm:text-6xl font-black text-slate-900 uppercase tracking-tighter mb-6 drop-shadow-sm">
-                CRONOGRAMA GCM
+              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight mb-6 drop-shadow-sm">
+                CRONOGRAMA DE ESTUDOS
               </h1>
 
               <div className="flex justify-center">
