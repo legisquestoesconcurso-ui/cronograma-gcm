@@ -13,7 +13,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <Link href="/" className="flex items-center">
-            <div className="bg-white p-1.5 rounded-md shadow-md">
+            <div className="bg-white p-1 rounded-md shadow-md">
               <img 
                 src="https://raw.githubusercontent.com/legisquestoesconcurso-ui/cronograma-gcm/main/public/logo-projeto.png" 
                 alt="Projeto ser GCM" 

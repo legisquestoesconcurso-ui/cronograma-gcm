@@ -81,7 +81,7 @@ export default async function DashboardPage() {
           </div>
           
           <h1 className="text-4xl sm:text-5xl font-black text-slate-900 uppercase tracking-tight mb-8">
-            MEU CRONOGRAMA DE ESTUDOS
+            CRONOGRAMA GCM
           </h1>
 
           <div className="flex justify-center">
