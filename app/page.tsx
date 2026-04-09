@@ -34,8 +34,8 @@ export default async function DashboardPage() {
   // Espaço reservado para o futuro botão de Suporte via WhatsApp
 
   return (
-    <div className="min-h-screen relative bg-transparent">
-      {/* Camada de Fundo Fixa */}
+    <div className="min-h-screen relative bg-white">
+      {/* Camada de Fundo Fixa Operacional */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
@@ -47,7 +47,7 @@ export default async function DashboardPage() {
         }}
       />
       
-      {/* Degradê de Proteção para Legibilidade */}
+      {/* Degradê de Proteção para Legibilidade (Branco Puro embaixo para Transparente em cima) */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
