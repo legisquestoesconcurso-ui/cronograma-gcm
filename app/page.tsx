@@ -30,10 +30,8 @@ async function getInitialData() {
 export default async function DashboardPage() {
   const { concursos, metas, totalTasks } = await getInitialData();
 
-  // Espaço reservado para o futuro botão de Suporte via WhatsApp
-
   return (
-    <div className="min-h-screen relative bg-white">
+    <div className="min-h-screen flex flex-col relative overflow-x-hidden">
       {/* Camada de Fundo Fixa Operacional (Caminho Absoluto) */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none"
@@ -50,56 +48,65 @@ export default async function DashboardPage() {
       <div 
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(to bottom, transparent 0%, transparent 25%, white 70%, white 100%)'
+          background: 'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.1) 20%, rgba(255,255,255,0.8) 70%, white 100%)'
         }}
       />
 
-      <div className="relative z-10">
+      <div className="relative z-10 flex flex-col min-h-screen">
         <Navbar />
         
-        <main className="max-w-[1600px] mx-auto px-6 sm:px-12 py-20">
-        <div className="mb-24 flex flex-col items-center text-center">
-          <div className="mb-6 relative bg-transparent p-0 border-none shadow-none">
-            <div className="mix-blend-multiply bg-transparent">
-              <img 
-                src="https://github.com/legisquestoesconcurso-ui/cronograma-gcm/raw/main/public/logo-gcm-v1.png" 
-                alt="Logo Projeto Ser GCM" 
-                className="w-[250px] h-auto mx-auto mb-4" 
-              />
+        <main className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12">
+          {/* Hero Section / Header */}
+          <div className="mb-16 flex flex-col items-center text-center">
+            <div className="mb-8 relative group">
+              <div className="mix-blend-multiply transition-transform duration-500 hover:scale-105">
+                <img 
+                  src="https://github.com/legisquestoesconcurso-ui/cronograma-gcm/raw/main/public/logo-gcm-v1.png" 
+                  alt="Logo Projeto Ser GCM" 
+                  className="w-48 sm:w-64 h-auto mx-auto" 
+                />
+              </div>
+              
+              <Link 
+                href="/perfil"
+                className="absolute -right-12 sm:-right-20 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm p-3 sm:p-4 rounded-2xl shadow-xl border border-slate-200 text-slate-900 hover:text-blue-600 hover:scale-110 transition-all group flex items-center justify-center"
+                title="Meu Perfil"
+              >
+                <User className="w-5 h-5 sm:w-6 h-6" />
+                <span className="absolute left-full ml-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                  Meu Perfil
+                </span>
+              </Link>
             </div>
-            <Link 
-              href="/perfil"
-              className="absolute -right-16 top-1/2 -translate-y-1/2 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 text-slate-900 hover:text-blue-600 transition-all group flex items-center justify-center"
-              title="Meu Perfil"
-            >
-              <User className="w-6 h-6" />
-              <span className="absolute left-full ml-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                Meu Perfil
-              </span>
-            </Link>
+            
+            <div className="bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 shadow-2xl max-w-3xl w-full">
+              <h1 className="text-4xl sm:text-6xl font-black text-slate-900 uppercase tracking-tighter mb-6 drop-shadow-sm">
+                CRONOGRAMA GCM
+              </h1>
+
+              <div className="flex justify-center">
+                <p className="text-blue-700 font-extrabold uppercase tracking-[0.2em] text-xs sm:text-sm italic">
+                  &ldquo;A aprovação não é para os mais inteligentes. É para os que não desistem.&rdquo;
+                </p>
+              </div>
+            </div>
           </div>
-          
-          <h1 className="text-4xl sm:text-5xl font-black text-slate-900 uppercase tracking-tight mb-8">
-            CRONOGRAMA GCM
-          </h1>
 
-          <div className="flex justify-center">
-            <p className="text-blue-600 font-bold uppercase tracking-widest text-sm sm:text-base">
-              &ldquo;A aprovação não é para os mais inteligentes. É para os que não desistem.&rdquo;
-            </p>
+          {/* Dashboard Content */}
+          <div className="bg-white/60 backdrop-blur-lg rounded-[2.5rem] p-6 sm:p-10 border border-white/60 shadow-2xl">
+            <DashboardClient 
+              initialMetas={metas} 
+              totalTasks={totalTasks} 
+              concursos={concursos}
+            />
           </div>
-        </div>
+        </main>
 
-        {/* Espaço reservado para o futuro botão de Suporte via WhatsApp */}
-
-        {/* Componente de Cliente que gerencia o progresso individual */}
-        <DashboardClient 
-          initialMetas={metas} 
-          totalTasks={totalTasks} 
-          concursos={concursos}
-        />
-      </main>
+        {/* Footer / Bottom Spacing */}
+        <footer className="py-8 text-center text-slate-500 text-xs font-medium uppercase tracking-widest">
+          Projeto Ser GCM © {new Date().getFullYear()}
+        </footer>
+      </div>
     </div>
-  </div>
   );
 }
