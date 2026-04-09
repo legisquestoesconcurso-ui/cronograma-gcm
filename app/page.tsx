@@ -3,8 +3,9 @@ import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import DashboardClient from '@/components/DashboardClient';
 import Link from 'next/link';
-import Image from 'next/image';
 import { User } from 'lucide-react';
+import OperationalBackground from '@/components/OperationalBackground';
+import LogoWithFallback from '@/components/LogoWithFallback';
 
 // Estratégia de Cache: Revalida a cada 60 segundos
 export const revalidate = 60;
@@ -35,16 +36,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen relative bg-white">
-      {/* Camada de Fundo Fixa Operacional */}
-      <div 
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{
-          backgroundImage: "url('/bg-patrulha.png')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed'
-        }}
+      {/* Camada de Fundo Fixa Operacional com Redundância */}
+      <OperationalBackground 
+        localSrc="/bg-patrulha-v1.png"
+        fallbackSrc="https://raw.githubusercontent.com/legisquestoesconcurso-ui/cronograma-gcm/main/public/bg-patrulha-v1.png"
       />
       
       {/* Degradê de Proteção para Legibilidade (Branco Puro embaixo para Transparente em cima) */}
@@ -62,8 +57,9 @@ export default async function DashboardPage() {
         <div className="mb-24 flex flex-col items-center text-center">
           <div className="mb-6 relative bg-transparent p-0 border-none shadow-none">
             <div className="mix-blend-multiply bg-transparent">
-              <img 
-                src="https://raw.githubusercontent.com/legisquestoesconcurso-ui/cronograma-gcm/main/public/logo-gcm-oficial.png" 
+              <LogoWithFallback 
+                src="/logo-gcm-v1.png" 
+                fallbackSrc="https://raw.githubusercontent.com/legisquestoesconcurso-ui/cronograma-gcm/main/public/logo-gcm-v1.png"
                 alt="Logo Projeto Ser GCM" 
                 className="w-[250px] h-auto mx-auto mb-4" 
               />
