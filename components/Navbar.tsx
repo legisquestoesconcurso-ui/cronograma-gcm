@@ -4,7 +4,6 @@ import React from 'react';
 import { Shield, LogOut, User as UserIcon, LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import LogoWithFallback from './LogoWithFallback';
 
 export default function Navbar() {
   const { user, signOut } = useAuth();
@@ -15,9 +14,8 @@ export default function Navbar() {
         <div className="flex justify-between h-16 items-center">
           <Link href="/" className="flex items-center">
             <div className="bg-white p-1 rounded-md shadow-md">
-              <LogoWithFallback 
-                src="/logo-gcm-v1.png" 
-                fallbackSrc="https://raw.githubusercontent.com/legisquestoesconcurso-ui/cronograma-gcm/main/public/logo-gcm-v1.png"
+              <img 
+                src="https://raw.githubusercontent.com/legisquestoesconcurso-ui/cronograma-gcm/main/public/logo-gcm-v1.png" 
                 alt="Projeto ser GCM" 
                 className="h-10 w-auto object-contain"
               />
