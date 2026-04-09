@@ -15,7 +15,7 @@ export default function Navbar() {
           <Link href="/" className="flex items-center">
             <div className="bg-white p-1 rounded-md shadow-md">
               <img 
-                src="https://raw.githubusercontent.com/legisquestoesconcurso-ui/cronograma-gcm/main/public/logo-gcm-v1.png" 
+                src="https://github.com/legisquestoesconcurso-ui/cronograma-gcm/raw/main/public/logo-gcm-v1.png" 
                 alt="Projeto ser GCM" 
                 className="h-10 w-auto object-contain"
               />
