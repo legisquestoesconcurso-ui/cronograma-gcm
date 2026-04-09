@@ -64,7 +64,7 @@ export default async function DashboardPage() {
             <img 
               src="https://cdn.jsdelivr.net/gh/legisquestoesconcurso-ui/cronograma-gcm/public/logo-projeto.png" 
               alt="Logo Projeto Ser GCM" 
-              className="w-[250px] h-auto mx-auto mb-4" 
+              className="w-[250px] h-auto mx-auto mb-4 mix-blend-multiply" 
             />
             <Link 
               href="/perfil"
