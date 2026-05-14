@@ -11,11 +11,9 @@ export async function POST(request: Request) {
     const signature = request.headers.get('x-kiwify-signature'); // A assinatura da Kiwify
     const secret = process.env.KIWIFY_TOKEN; // O token que você salvou na Vercel
 
-    // Verificação de Segurança: O sinal é real?
-    // Nota: Para simplificar agora, vamos apenas logar se a assinatura chegou
+    // Verificação de Segurança: Log se a assinatura estiver ausente (não bloqueia para facilitar testes)
     if (!signature) {
-      console.error("Alerta: Requisição sem assinatura detectada!");
-      // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); // Descomente para bloquear
+      console.log("Atenção: Webhook recebido sem a assinatura 'x-kiwify-signature'. Prosseguindo com o processamento...");
     }
 
     // Extração dos dados conforme solicitado
