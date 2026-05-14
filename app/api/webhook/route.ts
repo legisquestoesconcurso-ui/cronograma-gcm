@@ -8,14 +8,23 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const signature = request.headers.get('x-kiwify-signature'); // A assinatura da Kiwify
+    const secret = process.env.KIWIFY_TOKEN; // O token que você salvou na Vercel
+
+    // Verificação de Segurança: O sinal é real?
+    // Nota: Para simplificar agora, vamos apenas logar se a assinatura chegou
+    if (!signature) {
+      console.error("Alerta: Requisição sem assinatura detectada!");
+      // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); // Descomente para bloquear
+    }
 
     // Extração dos dados conforme solicitado
     const email = body.customer?.email;
     const orderStatus = body.order_status;
     const cpfRaw = body.customer?.cpf;
 
-    // Log para depuração (opcional, mas útil para webhooks)
-    console.log(`Webhook recebido: ${email}, Status: ${orderStatus}`);
+    // Log para depuração
+    console.log(`Webhook recebido. Email: ${email}, Status: ${orderStatus}, Assinatura: ${signature ? 'Presente' : 'Ausente'}`);
 
     // Verificação de segurança das variáveis de ambiente
     const supabaseUrl = process.env.SUPABASE_URL;
