@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export async function GET() {
+  return NextResponse.json({ message: "A rota do Webhook está ATIVA e OPERACIONAL!" });
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
