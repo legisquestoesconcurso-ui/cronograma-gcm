@@ -8,46 +8,55 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const signature = request.headers.get('x-kiwify-signature'); // A assinatura da Kiwify
-    const secret = process.env.KIWIFY_TOKEN; // O token que você salvou na Vercel
+    
+    // 1. LOG DE SEGURANÇA: Vamos ver EXATAMENTE o que a Kiwify mandou
+    console.log("CONTEÚDO COMPLETO RECEBIDO:", JSON.stringify(body));
 
-    // Verificação de Segurança: Log se a assinatura estiver ausente (não bloqueia para facilitar testes)
+    // 2. EXTRAÇÃO RESILIENTE: Tenta pegar de vários lugares possíveis
+    const email = body.customer?.email || body.email;
+    const orderStatus = body.order_status || body.status;
+    const cpfRaw = body.customer?.cpf || body.cpf;
+    const signature = request.headers.get('x-kiwify-signature');
+
+    console.log(`Webhook processando - Email: ${email}, Status: ${orderStatus}, Assinatura: ${signature ? 'Presente' : 'Ausente'}`);
+
+    // 3. BYPASS DE ASSINATURA: Apenas avisa no log, mas não barra o teste
     if (!signature) {
-      console.log("Atenção: Webhook recebido sem a assinatura 'x-kiwify-signature'. Prosseguindo com o processamento...");
+      console.log("Aviso: Teste realizado sem assinatura.");
     }
 
-    // Extração dos dados conforme solicitado
-    const email = body.customer?.email;
-    const orderStatus = body.order_status;
-    const cpfRaw = body.customer?.cpf;
-
-    // Log para depuração
-    console.log(`Webhook recebido. Email: ${email}, Status: ${orderStatus}, Assinatura: ${signature ? 'Presente' : 'Ausente'}`);
-
-    // Verificação de segurança das variáveis de ambiente
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Configuração do Supabase ausente');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    // 4. VERIFICAÇÃO DE DADOS MÍNIMOS
+    if (!email) {
+      console.error("Erro: E-mail não localizado no pacote de dados.");
+      return NextResponse.json({ error: 'Email nao encontrado' }, { status: 400 });
     }
 
-    // Inicialização do cliente Supabase com Service Role (Admin)
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
+    // Se o status for pago ou aprovado (ou se for o teste da Kiwify que às vezes manda outro nome)
+    if (orderStatus === 'paid' || orderStatus === 'approved' || orderStatus === 'completed') {
+      console.log("Iniciando criação de usuário no Supabase...");
+      
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !supabaseServiceKey) {
+        console.error('Configuração do Supabase ausente');
+        return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
       }
-    });
 
-    // Limpeza do CPF (manter apenas números)
-    const cleanedCpf = cpfRaw ? cpfRaw.replace(/\D/g, '') : '';
+      // Inicialização do cliente Supabase com Service Role (Admin)
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
 
-    // Verificação do status do pedido
-    if (orderStatus === 'paid' || orderStatus === 'approved') {
-      if (!email || !cleanedCpf) {
-        return NextResponse.json({ error: 'Missing customer data' }, { status: 400 });
+      // Limpeza do CPF (manter apenas números)
+      const cleanedCpf = cpfRaw ? String(cpfRaw).replace(/\D/g, '') : '';
+
+      if (!cleanedCpf) {
+        console.error("Erro: CPF não localizado para criação de senha.");
+        return NextResponse.json({ error: 'CPF nao encontrado' }, { status: 400 });
       }
 
       // Criação do usuário via Auth Admin API
@@ -59,7 +68,6 @@ export async function POST(request: Request) {
       });
 
       if (error) {
-        // Se o erro for que o usuário já existe, podemos retornar sucesso ou tratar
         if (error.message.includes('already registered')) {
           console.log(`Usuário ${email} já existe.`);
           return NextResponse.json({ message: 'User already exists' }, { status: 200 });
@@ -72,9 +80,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'User created successfully', userId: data.user?.id }, { status: 200 });
     }
 
-    return NextResponse.json({ message: 'Webhook received, no action taken' });
+    return NextResponse.json({ message: 'Webhook recebido com sucesso, mas status não processado' }, { status: 200 });
+
   } catch (error: any) {
-    console.error('Erro no processamento do webhook:', error.message);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Erro Fatal:', error.message);
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
