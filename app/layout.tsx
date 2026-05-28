@@ -8,7 +8,7 @@ import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 const plusJakartaSans = Plus_Jakarta_Sans({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Projeto ser GCM',
+  title: 'Missão Ser GCM',
   description: 'Plataforma profissional de cronograma baseada em Ciclo de Estudos para GCM.',
 };
 

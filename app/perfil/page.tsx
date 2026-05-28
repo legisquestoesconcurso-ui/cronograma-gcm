@@ -126,7 +126,7 @@ export default function PerfilPage() {
           <div className="relative h-[120px] w-full mb-6">
             <Image 
               src="/logo-projeto.png" 
-              alt="Logo Projeto Ser GCM" 
+              alt="Logo Missão Ser GCM" 
               fill
               className="object-contain"
               referrerPolicy="no-referrer"

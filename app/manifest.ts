@@ -2,8 +2,8 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Projeto GCM',
-    short_name: 'Projeto GCM',
+    name: 'Missão Ser GCM',
+    short_name: 'Missão Ser GCM',
     description: 'Plataforma profissional de cronograma baseada em Ciclo de Estudos para GCM.',
     start_url: '/',
     display: 'standalone',

@@ -73,7 +73,7 @@ export default function PWAInstallPrompt() {
               <Download className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm font-bold uppercase tracking-tight">Instalar App Projeto GCM</p>
+              <p className="text-sm font-bold uppercase tracking-tight">Instalar App Missão Ser GCM</p>
               <p className="text-[10px] text-blue-200 uppercase tracking-widest">Acesso rápido e offline</p>
             </div>
           </div>

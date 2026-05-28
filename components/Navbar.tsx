@@ -16,11 +16,11 @@ export default function Navbar() {
             <div className="bg-white p-1.5 rounded-xl shadow-lg transition-transform group-hover:scale-105">
               <img 
                 src="https://github.com/legisquestoesconcurso-ui/cronograma-gcm/raw/main/public/logo-gcm-v1.png" 
-                alt="Projeto ser GCM" 
+                alt="Missão Ser GCM" 
                 className="h-12 w-auto object-contain"
               />
             </div>
-            <span className="ml-4 font-black text-xl tracking-tighter hidden sm:block">PROJETO SER GCM</span>
+            <span className="ml-4 font-black text-xl tracking-tighter hidden sm:block">MISSÃO SER GCM</span>
           </Link>
 
           <div className="flex items-center space-x-6">

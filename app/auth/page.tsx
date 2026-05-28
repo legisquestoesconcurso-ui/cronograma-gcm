@@ -40,7 +40,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="bg-slate-900 p-8 text-center">
           <Shield className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-medium text-white uppercase tracking-wider">Projeto ser GCM</h1>
+          <h1 className="text-2xl font-medium text-white uppercase tracking-wider">Missão Ser GCM</h1>
           <p className="text-slate-400 text-sm mt-2">Acesse sua plataforma de estudos</p>
         </div>
 

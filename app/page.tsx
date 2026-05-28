@@ -62,7 +62,7 @@ export default async function DashboardPage() {
               <div className="mix-blend-multiply transition-transform duration-500 hover:scale-105">
                 <img 
                   src="https://github.com/legisquestoesconcurso-ui/cronograma-gcm/raw/main/public/logo-gcm-v1.png" 
-                  alt="Logo Projeto Ser GCM" 
+                  alt="Logo Missão Ser GCM" 
                   className="w-48 sm:w-64 h-auto mx-auto" 
                 />
               </div>
@@ -93,7 +93,7 @@ export default async function DashboardPage() {
 
         {/* Footer / Bottom Spacing */}
         <footer className="py-8 text-center text-slate-500 text-xs font-medium uppercase tracking-widest">
-          Projeto Ser GCM © {new Date().getFullYear()}
+          Missão Ser GCM © {new Date().getFullYear()}
         </footer>
       </div>
     </div>

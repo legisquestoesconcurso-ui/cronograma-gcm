@@ -50,7 +50,7 @@ export default function LoginPage() {
             Acesso ao Cronograma
           </h1>
           <p className="text-3xl font-bold text-blue-600 uppercase tracking-tighter mt-1">
-            Projeto Ser GCM
+            Missão Ser GCM
           </p>
         </div>
 
