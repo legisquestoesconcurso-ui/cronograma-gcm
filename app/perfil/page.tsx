@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Shield } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -19,6 +19,7 @@ export default function PerfilPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [formData, setFormData] = useState({
     whatsapp: '',
     estado: '',
@@ -123,14 +124,21 @@ export default function PerfilPage() {
       
       <main className="max-w-2xl mx-auto px-6 py-12">
         <div className="flex flex-col items-center mb-12">
-          <div className="relative h-[120px] w-full mb-6">
-            <Image 
-              src="/logo-projeto.png" 
-              alt="Logo Missão Ser GCM" 
-              fill
-              className="object-contain"
-              referrerPolicy="no-referrer"
-            />
+          <div className="relative h-[120px] w-full mb-6 flex items-center justify-center">
+            {!imageError ? (
+              <Image 
+                src="/logo-gcm-v1.png" 
+                alt="Logo Missão Ser GCM" 
+                fill
+                className="object-contain"
+                referrerPolicy="no-referrer"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-4 bg-blue-50/50 rounded-full border border-blue-100">
+                <Shield className="w-16 h-16 text-blue-600 animate-pulse" />
+              </div>
+            )}
           </div>
           <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
             MEU PERFIL GCM
