@@ -58,6 +58,10 @@ export default function AdminPage() {
   const [newConcursoNome, setNewConcursoNome] = useState('');
   const [isCreatingConcurso, setIsCreatingConcurso] = useState(false);
 
+  // Importação CSV
+  const [isImportingCSV, setIsImportingCSV] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
   // 1. Verificação rígida de segurança
   useEffect(() => {
     if (authLoading) return;
@@ -256,6 +260,202 @@ export default function AdminPage() {
     }));
   };
 
+  // Helper para split de CSV tratando aspas duplas corretamente
+  const splitCSVLine = (line: string) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' || char === "'") {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim().replace(/^["']|["']$/g, ''));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim().replace(/^["']|["']$/g, ''));
+    return result;
+  };
+
+  // Parsing nativo e robusto de arquivo CSV
+  const parseCSV = (text: string) => {
+    const lines = text.split(/\r?\n/);
+    if (lines.length <= 1) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+    const metaIdx = headers.indexOf('meta_id');
+    const numIdx = headers.indexOf('numero_tarefa');
+    const titleIdx = headers.indexOf('titulo');
+    const materialIdx = headers.indexOf('link_material');
+    const questionsIdx = headers.indexOf('link_questoes');
+
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const values = splitCSVLine(line);
+      if (values.length === 0) continue;
+      rows.push({
+        meta_id: metaIdx !== -1 ? (values[metaIdx] || '') : '',
+        numero_tarefa: numIdx !== -1 ? (parseInt(values[numIdx]) || 1) : 1,
+        titulo: titleIdx !== -1 ? (values[titleIdx] || '') : '',
+        link_material: materialIdx !== -1 ? (values[materialIdx] || '') : '',
+        link_questoes: questionsIdx !== -1 ? (values[questionsIdx] || '') : '',
+      });
+    }
+    return rows;
+  };
+
+  // Executa o download de um arquivo CSV exemplo estruturado
+  const downloadExampleCSV = () => {
+    const csvContent = "meta_id,numero_tarefa,titulo,link_material,link_questoes\n1,1,\"Direitos Individuais e Coletivos (CF Art. 5)\",\"material/art5_cf.pdf\",\"https://www.tecconcursos.com.br/cadernos/1\"\nMeta 1,2,\"Poder Constitucional de Polícia\",\"\",\"https://www.tecconcursos.com.br/cadernos/2\"\n";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "modelo_importacao_tarefas.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Carrega e inicia upload de arquivo selecionado manualmente ou arrastado
+  const handleCSVFileProcess = async (file: File) => {
+    if (!selectedConcursoId) {
+      toast.error('Selecione um Concurso/Edital antes de importar tarefas.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      if (!text) {
+        toast.error('Erro de leitura do arquivo carregado.');
+        return;
+      }
+      await importCSVData(text);
+    };
+    reader.readAsText(file, 'utf-8');
+  };
+
+  // Efetua importação em lote e relacionamento automático de metas no Supabase
+  const importCSVData = async (csvText: string) => {
+    try {
+      setIsImportingCSV(true);
+      const parsedRows = parseCSV(csvText);
+
+      if (parsedRows.length === 0) {
+        toast.error('Arquivo vazio ou cabeçalhos inválidos. Baixe o modelo e verifique.');
+        return;
+      }
+
+      toast.info(`Iniciando importação de ${parsedRows.length} tarefas...`);
+
+      // Cópia local de metas para consultar e atualizar se criarmos metadados dinâmicos
+      const currentMetas = [...metas];
+      const tarefasToInsert = [];
+
+      for (const row of parsedRows) {
+        const csvMetaField = row.meta_id ? row.meta_id.trim() : '';
+        if (!csvMetaField) {
+          throw new Error('Campo "meta_id" ausente ou em branco no CSV.');
+        }
+
+        // 1. Tentar localizar nos registros carregados do banco
+        let matchedMeta = currentMetas.find(m => m.id === csvMetaField);
+
+        // 2. Se não achou, tentar parear pela ordem numérica da meta
+        if (!matchedMeta) {
+          const mOrder = parseInt(csvMetaField);
+          if (!isNaN(mOrder)) {
+            matchedMeta = currentMetas.find(m => m.ordem === mOrder);
+          }
+        }
+
+        // 3. Se não achou, tentar parear pelo nome da meta de modo insensível à caixa
+        if (!matchedMeta) {
+          const sanitizedCsvMeta = csvMetaField.toLowerCase().replace(/^meta\s*/, '').trim();
+          matchedMeta = currentMetas.find(m => {
+            const sanitizedMetaName = m.nome_meta.toLowerCase().replace(/^meta\s*/, '').trim();
+            return sanitizedMetaName === sanitizedCsvMeta || m.nome_meta.toLowerCase() === csvMetaField.toLowerCase();
+          });
+        }
+
+        let resolvedMetaId = '';
+
+        if (matchedMeta) {
+          resolvedMetaId = matchedMeta.id;
+        } else {
+          // Criar meta dinamicamente para o Concurso/Edital atual
+          const newMetaName = csvMetaField.toLowerCase().startsWith('meta') ? csvMetaField : `Meta ${csvMetaField}`;
+          const newMetaOrdem = parseInt(csvMetaField) || (currentMetas.length + 1);
+
+          const { data: newMeta, error: metaErr } = await supabase
+            .from('metas')
+            .insert({
+              concurso_id: selectedConcursoId,
+              nome_meta: newMetaName,
+              ordem: newMetaOrdem
+            })
+            .select()
+            .single();
+
+          if (metaErr || !newMeta) {
+            throw new Error(`Falha ao registrar nova Meta "${newMetaName}" de forma automática: ${metaErr?.message || 'Erro desconhecido'}`);
+          }
+
+          resolvedMetaId = newMeta.id;
+          currentMetas.push(newMeta);
+        }
+
+        tarefasToInsert.push({
+          meta_id: resolvedMetaId,
+          numero_tarefa: row.numero_tarefa,
+          titulo: row.titulo,
+          link_material: row.link_material,
+          link_questoes: row.link_questoes,
+          concurso_id: selectedConcursoId
+        });
+      }
+
+      // Bulk Insert no Supabase
+      let finalInsertError = null;
+      const { error: firstAttemptError } = await supabase
+        .from('tarefas')
+        .insert(tarefasToInsert);
+
+      if (firstAttemptError) {
+        // Fallback robusto se concurso_id não estiver presente na tabela do Supabase de tarefas (erro de coluna ausente)
+        if (firstAttemptError.message?.includes('column') || firstAttemptError.code === '42703') {
+          const fallbackPayload = tarefasToInsert.map(({ concurso_id, ...rest }) => rest);
+          const { error: secondAttemptError } = await supabase
+            .from('tarefas')
+            .insert(fallbackPayload);
+          finalInsertError = secondAttemptError;
+        } else {
+          finalInsertError = firstAttemptError;
+        }
+      }
+
+      if (finalInsertError) {
+        throw finalInsertError;
+      }
+
+      toast.success(`${tarefasToInsert.length} tarefas integradas com sucesso!`);
+      // Recarrega listagem atualizada de forma fluida
+      await loadMetasAndTasks(selectedConcursoId);
+
+    } catch (err: any) {
+      console.error('Falha na importação CSV:', err.message || err);
+      toast.error(`Falha ao realizar a importação: ${err.message || err}`);
+    } finally {
+      setIsImportingCSV(false);
+    }
+  };
+
   if (authLoading || globalLoading) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center">
@@ -295,7 +495,7 @@ export default function AdminPage() {
       <div className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex-1">
         
         {/* Header do Admin */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-8 border-b border-slate-850">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 pb-8 border-b border-slate-850">
           <div>
             <div className="flex items-center space-x-3 mb-2">
               <span className="px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-[10px] font-bold tracking-widest uppercase">
@@ -311,13 +511,46 @@ export default function AdminPage() {
             </p>
           </div>
 
-          <button 
-            onClick={() => setShowAddConcurso(true)}
-            className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-blue-900/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          >
-            <FolderPlus className="w-4 h-4" />
-            <span>➕ Cadastrar Novo Concurso</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-4">
+            <button 
+              onClick={() => setShowAddConcurso(true)}
+              className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-blue-900/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              <FolderPlus className="w-4 h-4" />
+              <span>➕ Cadastrar Novo Concurso</span>
+            </button>
+
+            <div className="relative">
+              <input 
+                type="file"
+                id="header_csv_import"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleCSVFileProcess(file);
+                }}
+                disabled={!selectedConcursoId || isImportingCSV}
+                className="hidden"
+              />
+              <label 
+                htmlFor="header_csv_import"
+                className={`inline-flex items-center justify-center space-x-2 border-2 px-5 py-3 rounded-2xl font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                  !selectedConcursoId 
+                    ? 'border-dashed border-slate-800 text-slate-500 bg-slate-900/40 cursor-not-allowed' 
+                    : isImportingCSV
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-400 border-dashed animate-pulse'
+                    : 'border-dashed border-emerald-500/50 hover:border-emerald-400 hover:bg-emerald-500/10 text-emerald-400 bg-emerald-500/5 shadow-lg shadow-emerald-900/10'
+                }`}
+              >
+                {isImportingCSV ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 text-emerald-400" />
+                )}
+                <span>📥 Importar CSV</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         {/* Modal / Formulário Cadastro Concurso */}
@@ -430,6 +663,90 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+
+        {/* Bloco de Importação CSV */}
+        {selectedConcursoId && (
+          <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 sm:p-8 mb-10 shadow-2xl relative overflow-hidden">
+            {/* Gradiente sutil interno */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[60px] pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6">
+              <div>
+                <h2 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-emerald-400 animate-pulse" />
+                  <span>Importação em Massa via Planilha (CSV)</span>
+                </h2>
+                <p className="text-slate-400 text-xs mt-1">
+                  Cadastre dezenas de tarefas de uma só vez vinculadas às metas correspondentes do edital
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={downloadExampleCSV}
+                className="bg-slate-950 hover:bg-slate-850 hover:text-white border border-slate-800 text-slate-300 font-bold px-4 py-2.5 rounded-2xl text-xs transition-colors flex items-center gap-2"
+              >
+                📥 Baixar Modelo CSV Padrão
+              </button>
+            </div>
+
+            <div 
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) handleCSVFileProcess(file);
+              }}
+              className={`border-2 border-dashed rounded-3xl p-8 text-center flex flex-col items-center justify-center transition-all ${
+                isDragging 
+                  ? 'border-emerald-500 bg-emerald-500/10' 
+                  : 'border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-950/60'
+              }`}
+            >
+              <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl flex items-center justify-center mb-4">
+                <RefreshCw className={`w-7 h-7 ${isImportingCSV ? 'animate-spin animate-infinite' : ''}`} />
+              </div>
+
+              {isImportingCSV ? (
+                <div>
+                  <p className="text-sm font-bold text-white uppercase tracking-widest animate-pulse">
+                    Armazenando registros no banco de dados...
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Não feche esta aba. Processando e relacionando tarefas com suas metas correspondentes.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-slate-200">
+                    Arraste sua planilha .csv ou clique no seletor abaixo
+                  </p>
+                  <p className="text-xs text-slate-500 mt-2 max-w-lg mx-auto">
+                    Certifique-se de preencher as colunas <code className="text-emerald-400 font-bold font-mono">meta_id</code>, <code className="text-emerald-400 font-bold font-mono">numero_tarefa</code>, <code className="text-emerald-400 font-bold font-mono">titulo</code>, <code className="text-emerald-400 font-bold font-mono">link_material</code>, <code className="text-emerald-400 font-bold font-mono">link_questoes</code> no modelo.
+                  </p>
+
+                  <label className="mt-5 inline-flex items-center justify-center bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-6 rounded-2xl text-xs shadow-lg shadow-emerald-950/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+                    Selecionar Arquivo CSV
+                    <input 
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleCSVFileProcess(file);
+                      }}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* State Indicators */}
         {loadingTasks ? (
