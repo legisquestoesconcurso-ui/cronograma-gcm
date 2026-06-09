@@ -18,7 +18,12 @@ import {
   Activity, 
   Sparkles,
   RefreshCw,
-  FolderPlus
+  FolderPlus,
+  Users,
+  Search,
+  X,
+  ChevronRight,
+  BarChart3
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -61,6 +66,15 @@ export default function AdminPage() {
   // Importação CSV
   const [isImportingCSV, setIsImportingCSV] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Estados de Mentoria (Acompanhamento dos Alunos)
+  const [activeTab, setActiveTab] = useState<'editais' | 'mentoria'>('editais');
+  const [students, setStudents] = useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+  const [loadingPerformance, setLoadingPerformance] = useState(false);
+  const [selectedStudentPerformance, setSelectedStudentPerformance] = useState<any | null>(null);
 
   // 1. Verificação rígida de segurança
   useEffect(() => {
@@ -456,6 +470,234 @@ export default function AdminPage() {
     }
   };
 
+  // =============================================================
+  // LÓGICA DE ACOMPANHAMENTO DE MENTORIA (PROFESSOR)
+  // =============================================================
+
+  // Executa o recarregamento automático dos alunos ao selecionar a aba correspondente
+  useEffect(() => {
+    if (isAuthorized && activeTab === 'mentoria') {
+      fetchStudents();
+    }
+  }, [isAuthorized, activeTab]);
+
+  const fetchStudents = async () => {
+    try {
+      setLoadingStudents(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (error) throw error;
+      setStudents(data || []);
+    } catch (err: any) {
+      console.error('Erro ao buscar alunos:', err);
+      toast.error('Erro ao carregar lista de alunos do Supabase.');
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  // Classificador dinâmico de disciplinas baseado no título da tarefa e nome da meta
+  const matchDiscipline = (title: string, metaName: string = ''): string => {
+    const t = (title + ' ' + metaName).toLowerCase();
+    
+    if (t.includes('português') || t.includes('portugues') || t.includes('língua') || t.includes('lingua') || t.includes('redação') || t.includes('sintaxe') || t.includes('crase') || t.includes('morfologia') || t.includes('ortografia') || t.includes('concordância')) {
+      return 'Língua Portuguesa';
+    }
+    if (t.includes('constitucional') || t.includes('cf art') || t.includes('art. 5') || t.includes('direitos individuais') || t.includes('poder constituinte') || t.includes('direitos fundamentais')) {
+      return 'Direito Constitucional';
+    }
+    if (t.includes('administrativo') || t.includes('licitação') || t.includes('agente público') || t.includes('improbidade') || t.includes('servidor') || t.includes('parcerias') || t.includes('atos administrativos') || t.includes('poder de polícia')) {
+      return 'Direito Administrativo';
+    }
+    if (t.includes('penal') || t.includes('crime') || t.includes('punibilidade') || t.includes('legítima defesa') || t.includes('cpp')) {
+      return 'Direito Penal / Processo Penal';
+    }
+    if (t.includes('civil') || t.includes('contratos') || t.includes('família') || t.includes('sucessões')) {
+      return 'Direito Civil / Processo Civil';
+    }
+    if (t.includes('tributário') || t.includes('tributario') || t.includes('impostos') || t.includes('finanças')) {
+      return 'Direito Tributário';
+    }
+    if (t.includes('informática') || t.includes('informatica') || t.includes('planilha') || t.includes('excel') || t.includes('windows') || t.includes('internet') || t.includes('segurança')) {
+      return 'Informática';
+    }
+    if (t.includes('raciocínio') || t.includes('raciocinio') || t.includes('matemática') || t.includes('matematica') || t.includes('lógica') || t.includes('logica') || t.includes('estatística') || t.includes('estatistica')) {
+      return 'Raciocínio Lógico / Matemática';
+    }
+    if (t.includes('arquivologia') || t.includes('arquivo') || t.includes('documentos')) {
+      return 'Arquivologia';
+    }
+    
+    if (title.includes(':')) {
+      const prefix = title.split(':')[0].trim();
+      if (prefix.length > 2 && prefix.length < 30) {
+        return prefix;
+      }
+    }
+    if (title.includes(' - ')) {
+      const prefix = title.split(' - ')[0].trim();
+      if (prefix.length > 2 && prefix.length < 30) {
+        return prefix;
+      }
+    }
+    
+    if (metaName && metaName.length > 3) {
+      if (metaName.toLowerCase().startsWith('meta ')) {
+        const cleanMetaName = metaName.replace(/^meta\s+\d+\s*[-:]*\s*/i, '').trim();
+        if (cleanMetaName) return cleanMetaName;
+      }
+      return metaName;
+    }
+    return 'Conhecimentos Gerais';
+  };
+
+  // Carrega desempenho e gera estatísticas calculadas em tempo real de forma blindada
+  const loadStudentPerformance = async (student: any) => {
+    setSelectedStudent(student);
+    setLoadingPerformance(true);
+    setSelectedStudentPerformance(null);
+    
+    try {
+      const studentId = student.id;
+      // 1. Busca do progresso do usuário no user_progress do Supabase
+      let { data: upData, error: upErr } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', studentId);
+        
+      if (!upData || upData.length === 0) {
+        const { data: pData } = await supabase
+          .from('progresso')
+          .select('*')
+          .eq('user_id', studentId);
+        upData = pData || [];
+      }
+      
+      // Tenta achar o id do concurso no perfil do aluno. Fallback para o ativo ou o primeiro cadastrado
+      const studentConcursoId = student.concurso_id || selectedConcursoId || (concursos.length > 0 ? concursos[0].id : null);
+      
+      if (!studentConcursoId) {
+        throw new Error('Nenhum edital/concurso correspondente encontrado.');
+      }
+      
+      // 2. Busca todas as metas e tarefas do Concurso aplicável ao aluno
+      const { data: mData, error: mErr } = await supabase
+        .from('metas')
+        .select('id, nome_meta, ordem')
+        .eq('concurso_id', studentConcursoId)
+        .order('ordem', { ascending: true });
+        
+      if (mErr) throw mErr;
+      const metasArr = mData || [];
+      const metaIdsArr = metasArr.map(m => m.id);
+      
+      let tasksArr: any[] = [];
+      if (metaIdsArr.length > 0) {
+        const { data: tData, error: tErr } = await supabase
+          .from('tarefas')
+          .select('*')
+          .in('meta_id', metaIdsArr)
+          .order('numero_tarefa', { ascending: true });
+        if (tErr) throw tErr;
+        tasksArr = tData || [];
+      }
+      
+      const completedTaskIds = new Set(upData.map(p => p.tarefa_id));
+      
+      // Calcula total de Metas completadas (todas as tarefas daquela meta cumpridas)
+      let completedMetasCount = 0;
+      metasArr.forEach(m => {
+        const metaTasks = tasksArr.filter(t => t.meta_id === m.id);
+        if (metaTasks.length > 0) {
+          const allCompleted = metaTasks.every(t => completedTaskIds.has(t.id));
+          if (allCompleted) {
+            completedMetasCount++;
+          }
+        }
+      });
+      
+      const totalMetas = metasArr.length;
+      const progressPercent = totalMetas > 0 ? Math.round((completedMetasCount / totalMetas) * 100) : 0;
+      
+      // Filtra pela tentativa mais recente por tarefa para ser fiel ao status atual
+      const latestAttemptByTask: Record<string, any> = {};
+      upData.forEach(p => {
+        const existing = latestAttemptByTask[p.tarefa_id];
+        if (!existing || (p.data_estudo && new Date(p.data_estudo) > new Date(existing.data_estudo))) {
+          latestAttemptByTask[p.tarefa_id] = p;
+        }
+      });
+      
+      let totalQuestions = 0;
+      let totalCorrect = 0;
+      
+      Object.keys(latestAttemptByTask).forEach(taskId => {
+        const isTaskInConcurso = tasksArr.some(t => t.id === taskId);
+        if (isTaskInConcurso) {
+          const p = latestAttemptByTask[taskId];
+          totalQuestions += p.total_questoes || 0;
+          totalCorrect += p.acertos || 0;
+        }
+      });
+      
+      const generalAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+      
+      // Resumo de desempenho agrupado por Disciplina
+      const disciplineStats: Record<string, { totalQ: number, correctQ: number, tasksCount: number, completedCount: number }> = {};
+      
+      tasksArr.forEach(t => {
+        const metaOfTask = metasArr.find(m => m.id === t.meta_id);
+        const disc = matchDiscipline(t.titulo, metaOfTask?.nome_meta || '');
+        
+        if (!disciplineStats[disc]) {
+          disciplineStats[disc] = { totalQ: 0, correctQ: 0, tasksCount: 0, completedCount: 0 };
+        }
+        
+        disciplineStats[disc].tasksCount++;
+        if (completedTaskIds.has(t.id)) {
+          disciplineStats[disc].completedCount++;
+          const p = latestAttemptByTask[t.id];
+          if (p) {
+            disciplineStats[disc].totalQ += p.total_questoes || 0;
+            disciplineStats[disc].correctQ += p.acertos || 0;
+          }
+        }
+      });
+      
+      const disciplineResumes = Object.entries(disciplineStats).map(([name, stats]) => {
+        const accuracy = stats.totalQ > 0 ? Math.round((stats.correctQ / stats.totalQ) * 100) : 0;
+        const taskProgress = stats.tasksCount > 0 ? Math.round((stats.completedCount / stats.tasksCount) * 100) : 0;
+        return {
+          name,
+          accuracy,
+          totalQuestions: stats.totalQ,
+          correctAnswers: stats.correctQ,
+          completedTasks: stats.completedCount,
+          totalTasks: stats.tasksCount,
+          taskProgress
+        };
+      }).sort((a, b) => b.totalTasks - a.totalTasks);
+      
+      setSelectedStudentPerformance({
+        concursoName: concursos.find(c => c.id === studentConcursoId)?.nome || 'Outro / Não Definido',
+        completedMetasCount,
+        totalMetas,
+        progressPercent,
+        generalAccuracy,
+        totalQuestions,
+        totalCorrect,
+        disciplineResumes
+      });
+    } catch (err: any) {
+      console.error('Erro ao calcular desempenho:', err);
+      toast.error('Erro ao carregar raio-x de progresso: ' + err.message);
+    } finally {
+      setLoadingPerformance(false);
+    }
+  };
+
   if (authLoading || globalLoading) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center">
@@ -616,7 +858,33 @@ export default function AdminPage() {
           )}
         </AnimatePresence>
 
-        {/* Dashboard Control Box */}
+        {/* Seletor de Abas Principais em Design Premium */}
+        <div className="flex border-b border-slate-800 mb-10 gap-2 relative z-10 w-full overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setActiveTab('editais')}
+            className={`flex items-center gap-2 px-6 py-4 border-b-2 font-black uppercase text-xs tracking-widest transition-all shrink-0 cursor-pointer ${
+              activeTab === 'editais'
+                ? 'border-blue-500 text-white bg-slate-900/30'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/10'
+            } rounded-t-2xl`}
+          >
+            📋 Gerenciar Editais
+          </button>
+          <button
+            onClick={() => setActiveTab('mentoria')}
+            className={`flex items-center gap-2 px-6 py-4 border-b-2 font-black uppercase text-xs tracking-widest transition-all shrink-0 cursor-pointer ${
+              activeTab === 'mentoria'
+                ? 'border-amber-400 text-white bg-slate-900/30'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/10'
+            } rounded-t-2xl`}
+          >
+            📊 Acompanhamento da Mentoria
+          </button>
+        </div>
+
+        {activeTab === 'editais' ? (
+          <>
+            {/* Dashboard Control Box */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 sm:p-8 mb-10 shadow-2xl relative overflow-hidden">
           {/* Luzes decorativas */}
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-900/10 rounded-full blur-[100px] pointer-events-none" />
