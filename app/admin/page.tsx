@@ -1155,6 +1155,294 @@ export default function AdminPage() {
             })}
           </div>
         )}
+        </>
+      ) : (
+          /* Aba de Acompanhamento da Mentoria */
+          <div className="space-y-8 relative z-10">
+            {/* Barra de Pesquisa de Alunos */}
+            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex-1 max-w-lg relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Search className="w-5 h-5" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Pesquisar por nome ou e-mail..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-500 rounded-2xl pl-12 pr-4 py-3.5 text-sm focus:outline-none focus:border-amber-400 transition-colors"
+                />
+              </div>
+              <div className="text-xs text-slate-400">
+                Total de alunos registrados: <span className="text-white font-bold">{students.length}</span>
+              </div>
+            </div>
+
+            {/* Listagem de Alunos em Tabela / Cards Ultra Premium */}
+            {loadingStudents ? (
+              <div className="py-20 text-center flex flex-col items-center justify-center">
+                <Loader2 className="w-12 h-12 text-amber-400 animate-spin mb-4" />
+                <p className="text-slate-400 font-bold tracking-widest text-xs uppercase animate-pulse">
+                  Buscando perfis dos alunos...
+                </p>
+              </div>
+            ) : students.length === 0 ? (
+              <div className="bg-slate-900 border border-slate-850 rounded-[2.5rem] p-12 text-center max-w-xl mx-auto shadow-xl">
+                <Users className="w-12 h-12 text-amber-400/50 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white uppercase mb-2">Nenhum Aluno</h3>
+                <p className="text-slate-400 text-sm">
+                  Não existem estudantes cadastrados no banco de dados do Supabase.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-slate-950/40 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                        <th className="px-6 py-5">Foto / Aluno</th>
+                        <th className="px-6 py-5">Contato</th>
+                        <th className="px-6 py-5">Edital Vinculado</th>
+                        <th className="px-6 py-5 text-right font-bold">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-850">
+                      {students
+                        .filter(s => {
+                          const query = studentSearch.toLowerCase();
+                          const name = (s.nome_completo || '').toLowerCase();
+                          const email = (s.email || '').toLowerCase();
+                          return name.includes(query) || email.includes(query);
+                        })
+                        .map((student) => {
+                          const linkedConcurso = concursos.find(c => c.id === student.concurso_id);
+                          return (
+                            <tr key={student.id} className="hover:bg-slate-950/40 transition-colors">
+                              <td className="px-6 py-6">
+                                <div className="flex items-center space-x-4">
+                                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 border border-amber-500/10 text-amber-400 flex items-center justify-center font-black text-sm uppercase">
+                                    {student.nome_completo ? student.nome_completo.substring(0, 2) : 'A'}
+                                  </div>
+                                  <div>
+                                    <div className="font-bold text-white text-sm">
+                                      {student.nome_completo || 'Aluno Sem Nome'}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                      ID: {student.id.slice(0, 8)}...
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-6">
+                                <div className="text-slate-300 text-xs font-medium">{student.email}</div>
+                                {student.whatsapp && (
+                                  <div className="text-emerald-400 text-[10px] font-bold mt-1 tracking-wider">
+                                    📞 {student.whatsapp}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-6 py-6">
+                                <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  linkedConcurso 
+                                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                                    : 'bg-slate-950 text-slate-500 border border-slate-850'
+                                }`}>
+                                  {linkedConcurso ? linkedConcurso.nome : 'Nenhum Selecionado'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-6 text-right">
+                                <button
+                                  onClick={() => loadStudentPerformance(student)}
+                                  className="inline-flex items-center space-x-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/30 text-amber-300 px-4 py-2.5 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer"
+                                >
+                                  <BarChart3 className="w-3.5 h-3.5" />
+                                  <span>Visualizar Desempenho</span>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modal de Raio-X de Desempenho do Aluno (Performance Pop-up) */}
+        <AnimatePresence>
+          {selectedStudent && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Overlay */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedStudent(null)}
+                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+              />
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-4xl max-h-[85vh] overflow-y-auto shadow-2xl p-6 sm:p-8 relative z-10 scrollbar-none"
+              >
+                {/* Botão Fechar */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudent(null)}
+                  className="absolute top-6 right-6 p-2 text-slate-400 hover:text-white bg-slate-950 hover:bg-slate-850 rounded-full border border-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                {/* Cabeçalho do Raio-X */}
+                <div className="flex items-center space-x-4 mb-8">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-black text-xl uppercase border border-amber-500/20 shadow-lg">
+                    {selectedStudent.nome_completo ? selectedStudent.nome_completo.substring(0, 2) : 'A'}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
+                      <span>Desempenho de {selectedStudent.nome_completo || 'Aluno'}</span>
+                    </h3>
+                    <p className="text-slate-400 text-xs mt-1">
+                      {selectedStudent.email} • {selectedStudent.whatsapp || 'Sem WhatsApp informado'}
+                    </p>
+                  </div>
+                </div>
+
+                {loadingPerformance ? (
+                  <div className="py-20 text-center flex flex-col items-center justify-center">
+                    <Loader2 className="w-12 h-12 text-amber-400 animate-spin mb-4" />
+                    <p className="text-slate-400 font-bold tracking-widest text-xs uppercase">
+                      Compilando métricas e histórico detalhado...
+                    </p>
+                  </div>
+                ) : selectedStudentPerformance ? (
+                  <div className="space-y-8">
+                    {/* Widgets de Métricas Rápidas */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-slate-950 border border-slate-850 p-6 rounded-3xl relative overflow-hidden">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Edital Configurado</p>
+                        <p className="text-base font-black text-white mt-2 truncate">
+                          {selectedStudentPerformance.concursoName}
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-950 border border-slate-850 p-6 rounded-3xl relative overflow-hidden">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Metas Cumpridas no Edital</p>
+                          <span className="text-xs text-slate-500 font-bold font-mono">
+                            {selectedStudentPerformance.completedMetasCount}/{selectedStudentPerformance.totalMetas} metas
+                          </span>
+                        </div>
+                        <div className="flex items-end justify-between mt-2">
+                          <p className="text-3xl font-black text-amber-400">
+                            {selectedStudentPerformance.progressPercent}%
+                          </p>
+                        </div>
+                        {/* Linha de progresso */}
+                        <div className="w-full bg-slate-900 rounded-full h-1.5 mt-3 overflow-hidden">
+                          <div 
+                            className="bg-amber-400 h-full rounded-full transition-all duration-500" 
+                            style={{ width: `${selectedStudentPerformance.progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-950 border border-slate-850 p-6 rounded-3xl relative overflow-hidden">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Taxa Geral de Acertos</p>
+                          <span className="text-xs text-slate-500 font-bold font-mono">
+                            {selectedStudentPerformance.totalCorrect}/{selectedStudentPerformance.totalQuestions} questões
+                          </span>
+                        </div>
+                        <div className="flex items-end justify-between mt-2">
+                          <p className="text-3xl font-black text-emerald-400">
+                            {selectedStudentPerformance.generalAccuracy}%
+                          </p>
+                        </div>
+                        {/* Linha de acertos */}
+                        <div className="w-full bg-slate-900 rounded-full h-1.5 mt-3 overflow-hidden">
+                          <div 
+                            className="bg-emerald-400 h-full rounded-full transition-all duration-500" 
+                            style={{ width: `${selectedStudentPerformance.generalAccuracy}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desempenho por Disciplina */}
+                    <div>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">
+                        Resumo de Desempenho de Disciplinas
+                      </h4>
+                      {selectedStudentPerformance.disciplineResumes.length === 0 ? (
+                        <div className="bg-slate-950/60 rounded-3xl border border-slate-850 p-8 text-center text-slate-500 text-sm">
+                          Não há histórico de estudo ou questões resolvidas por este aluno.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {selectedStudentPerformance.disciplineResumes.map((disc: any) => (
+                            <div 
+                              key={disc.name}
+                              className="bg-slate-950/40 hover:bg-slate-950/70 transition-all border border-slate-850 p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4"
+                            >
+                              <div className="flex-1 min-w-[200px]">
+                                <div className="font-bold text-white text-sm uppercase tracking-tight truncate">
+                                  {disc.name}
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-bold mt-1">
+                                  {disc.completedTasks} de {disc.totalTasks} tarefas concluídas ({disc.taskProgress}%)
+                                </div>
+                              </div>
+
+                              {/* Barra de Progresso de Tarefas da Disciplina */}
+                              <div className="w-full md:w-32">
+                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Metas Concluídas</p>
+                                <div className="w-full bg-slate-900 rounded-full h-1.5">
+                                  <div 
+                                    className="bg-blue-500 h-full rounded-full transition-all" 
+                                    style={{ width: `${disc.taskProgress}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Estatística de Acertos da Disciplina */}
+                              <div className="w-full md:max-w-[170px] bg-slate-950 px-4 py-2 rounded-xl flex items-center justify-between gap-4">
+                                <div>
+                                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Aproveitamento</p>
+                                  <p className="text-xs text-slate-400 font-bold mt-0.5 font-mono">
+                                    {disc.correctAnswers}/{disc.totalQuestions} acertos
+                                  </p>
+                                </div>
+                                <span className={`text-base font-black ${
+                                  disc.accuracy >= 80 
+                                    ? 'text-emerald-400' 
+                                    : disc.accuracy >= 65 
+                                    ? 'text-amber-400' 
+                                    : 'text-red-400'
+                                }`}>
+                                  {disc.accuracy}%
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-slate-500">
+                    Ocorreu um erro ao carregar as informações estatísticas do aluno.
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
       </div>
     </div>
