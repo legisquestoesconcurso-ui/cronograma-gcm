@@ -66,8 +66,19 @@ export async function POST(request: Request) {
       body.order?.customer?.full_name ||
       body.Customer?.full_name;
 
+    const phone =
+      body.order?.Customer?.mobile ||
+      body.order?.Customer?.phone ||
+      body.customer?.mobile ||
+      body.customer?.phone ||
+      body.whatsapp ||
+      body.phone ||
+      body.Customer?.mobile ||
+      body.Customer?.phone;
+
     const finalEmail = email ? email.trim() : null;
     const finalName = name ? name.trim() : null;
+    const finalPhone = phone ? String(phone).trim() : null;
 
     if (!finalEmail) {
       console.error("Erro: E-mail não encontrado no payload do webhook.");
@@ -100,32 +111,47 @@ export async function POST(request: Request) {
     // 3. CRIAÇÃO / ATUALIZAÇÃO NO SUPABASE:
     let userId = "";
 
-    // Tentar criar a conta de Autenticação com o e-mail do aluno
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: finalEmail,
-      password: password,
-      email_confirm: true,
-      user_metadata: { cpf: cleanedCpf, nome: finalName }
-    });
+    // Primeiro, verifica de forma resiliente na tabela profiles se o email já existe
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', finalEmail)
+      .maybeSingle();
 
-    if (authError) {
-      // Se já houver cadastro, recuperamos o Id dele para ativar ou atualizar seu perfil
-      if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
-        console.log(`Aluno ${finalEmail} já possui cadastro no Auth. Buscando ID...`);
-        const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-        
-        if (!listError && userList?.users) {
-          const existingUser = userList.users.find(u => u.email?.toLowerCase() === finalEmail.toLowerCase());
-          if (existingUser) {
-            userId = existingUser.id;
+    if (existingProfile?.id) {
+      userId = existingProfile.id;
+      console.log(`Aluno ${finalEmail} já existe na tabela de perfis (profiles) com o ID: ${userId}`);
+    } else {
+      // Tentar criar a conta de Autenticação com o e-mail do aluno
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: finalEmail,
+        password: password,
+        email_confirm: true,
+        user_metadata: { cpf: cleanedCpf, nome: finalName }
+      });
+
+      if (authError) {
+        // Se já houver cadastro no Auth, recuperamos o Id dele para ativar ou atualizar seu perfil
+        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+          console.log(`Aluno ${finalEmail} já possui cadastro no Auth. Buscando ID...`);
+          const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+          
+          if (!listError && userList?.users) {
+            const existingUser = userList.users.find(u => u.email?.toLowerCase() === finalEmail.toLowerCase());
+            if (existingUser) {
+              userId = existingUser.id;
+            }
           }
         }
+        
+        // Se ainda assim não conseguirmos o userId, lançamos erro
+        if (!userId) {
+          console.error("Erro ao registrar novo aluno no Supabase Auth:", authError.message);
+          return NextResponse.json({ error: authError.message }, { status: 500 });
+        }
       } else {
-        console.error("Erro ao registrar novo aluno no Supabase Auth:", authError.message);
-        return NextResponse.json({ error: authError.message }, { status: 500 });
+        userId = authData.user?.id || "";
       }
-    } else {
-      userId = authData.user?.id || "";
     }
 
     if (!userId) {
@@ -149,17 +175,15 @@ export async function POST(request: Request) {
 
     console.log(`Vinculando edital padrão de ID: ${defaultConcursoId}`);
 
-    // Insere ou atualiza o perfil (tabela "profiles") do aluno marcando-o como ativo
+    // Insere ou atualiza o perfil (tabela "profiles") do aluno de forma segura
+    // Apenas com campos estruturais reais: id, email, nome_completo, whatsapp, concurso_id, updated_at
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .upsert({
         id: userId,
         email: finalEmail,
         nome_completo: finalName || finalEmail.split('@')[0],
-        status_assinatura: true,
-        subscription_status: 'active',
-        // Data limite em formato string válido (ex: 1 ano de acesso estipulado)
-        data_limite: '2027-12-31', 
+        whatsapp: finalPhone,
         concurso_id: defaultConcursoId,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' });
