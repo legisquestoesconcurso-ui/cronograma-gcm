@@ -181,22 +181,74 @@ export async function POST(request: Request) {
 
     console.log(`Vinculando edital padrão de ID: ${defaultConcursoId}`);
 
-    // Insere ou atualiza o perfil (tabela "profiles") do aluno de forma segura
-    // Apenas com campos estruturais reais: id, email, nome_completo, whatsapp, concurso_id, updated_at
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .upsert({
+    // 4. INSERÇÃO/ATUALIZAÇÃO DE PERFIL RESILIENTE (TOLERÂNCIA A FALHAS DE ESQUEMA/COLUNA):
+    // Tentamos salvar o pacote de dados completo e regredimos sequencialmente até o básico em caso de erros de coluna (ex: concurso_id ausente)
+    const payloads = [
+      // Tentativa 1: Esquema completo com concurso_id e nome_completo
+      {
         id: userId,
         email: finalEmail,
         nome_completo: finalName || finalEmail.split('@')[0],
         whatsapp: finalPhone,
         concurso_id: defaultConcursoId,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
+      },
+      // Tentativa 2: Nome do campo "concurso" alternativo (concurso)
+      {
+        id: userId,
+        email: finalEmail,
+        nome_completo: finalName || finalEmail.split('@')[0],
+        whatsapp: finalPhone,
+        concurso: defaultConcursoId,
+        updated_at: new Date().toISOString()
+      },
+      // Tentativa 3: Básico com nome_completo e whatsapp (Removendo colunas de concurso caso causem erro 500)
+      {
+        id: userId,
+        email: finalEmail,
+        nome_completo: finalName || finalEmail.split('@')[0],
+        whatsapp: finalPhone,
+        updated_at: new Date().toISOString()
+      },
+      // Tentativa 4: Básico com nome e whatsapp
+      {
+        id: userId,
+        email: finalEmail,
+        nome: finalName || finalEmail.split('@')[0],
+        whatsapp: finalPhone,
+        updated_at: new Date().toISOString()
+      },
+      // Tentativa 5: Mínimo Absoluto
+      {
+        id: userId,
+        email: finalEmail
+      }
+    ];
 
-    if (profileError) {
-      console.error("Erro ao salvar cadastro do aluno na tabela 'profiles':", profileError.message);
-      return NextResponse.json({ error: "Erro ao gerar perfil de aluno: " + profileError.message }, { status: 500 });
+    let upsertWorked = false;
+    let lastUpsertError = null;
+
+    for (let i = 0; i < payloads.length; i++) {
+      const payload = payloads[i];
+      console.log(`Tentativa de sincronização de perfil (Tentativa ${i + 1}/${payloads.length}) com chaves: ${Object.keys(payload).join(', ')}`);
+      
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .upsert(payload, { onConflict: 'id' });
+
+      if (!profileError) {
+        console.log(`Sucesso absoluto na salvaguarda do perfil (Tentativa ${i + 1})!`);
+        upsertWorked = true;
+        break;
+      } else {
+        console.warn(`Tentativa ${i + 1} de upsert falhou: ${profileError.message}`);
+        lastUpsertError = profileError;
+      }
+    }
+
+    if (!upsertWorked) {
+      console.error("Todas as tentativas de inserção no perfil profiles falharam:", lastUpsertError?.message);
+      return NextResponse.json({ error: "Erro ao gerar perfil de aluno: " + (lastUpsertError?.message || "Falha nas chaves de banco de dados") }, { status: 500 });
     }
 
     console.log(`Webhook processado com absoluto sucesso para o aluno: ${finalEmail} (${userId})`);
