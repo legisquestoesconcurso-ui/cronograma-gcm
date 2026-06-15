@@ -111,16 +111,16 @@ export async function POST(request: Request) {
     // 3. CRIAÇÃO / ATUALIZAÇÃO NO SUPABASE:
     let userId = "";
 
-    // Primeiro, verifica de forma resiliente na tabela profiles se o email já existe
+    // Primeiro, verifica de forma resiliente na tabela 'perfis' se o email já existe
     const { data: existingProfile } = await supabaseAdmin
-      .from('profiles')
+      .from('perfis')
       .select('id')
       .eq('email', finalEmail)
       .maybeSingle();
 
     if (existingProfile?.id) {
       userId = existingProfile.id;
-      console.log(`Aluno ${finalEmail} já existe na tabela de perfis (profiles) com o ID: ${userId}`);
+      console.log(`Aluno ${finalEmail} já existe na tabela de perfis (perfis) com o ID: ${userId}`);
     } else {
       // Tentar criar a conta de Autenticação com o e-mail do aluno
       try {
@@ -136,7 +136,7 @@ export async function POST(request: Request) {
         }
         userId = authData.user?.id || "";
       } catch (authErr: any) {
-        console.log(`Criação direta falhou ou usuário já cadastrado: ${authErr?.message || authErr}. Buscando ID por e-mail...`);
+        console.log(`Criação direta falhou ou usuário já cadastrado. Buscando ID por e-mail...`);
         
         try {
           // Busca resiliente do usuário listando no Auth como fallback absoluto
@@ -165,90 +165,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User ID resolution failed" }, { status: 500 });
     }
 
-    // Busca dinâmica do edital/concurso padrão (Pré-Edital) na tabela "concursos"
-    const { data: concursosData } = await supabaseAdmin
-      .from('concursos')
-      .select('id, nome');
-
-    let defaultConcursoId = null;
-    if (concursosData && concursosData.length > 0) {
-      const found = concursosData.find(c => {
-        const n = c.nome.toLowerCase();
-        return n.includes('pré-edital') || n.includes('pre-edital') || n.includes('geral');
-      });
-      defaultConcursoId = found ? found.id : concursosData[0].id;
-    }
-
-    console.log(`Vinculando edital padrão de ID: ${defaultConcursoId}`);
-
-    // 4. INSERÇÃO/ATUALIZAÇÃO DE PERFIL RESILIENTE (TOLERÂNCIA A FALHAS DE ESQUEMA/COLUNA):
-    // Tentamos salvar o pacote de dados completo e regredimos sequencialmente até o básico em caso de erros de coluna (ex: concurso_id ausente)
-    const payloads = [
-      // Tentativa 1: Esquema completo com concurso_id e nome_completo
-      {
+    // 4. INSERÇÃO/ATUALIZAÇÃO DE PERFIL NA TABELA 'perfis' ÚNICA E EXCLUSIVAMENTE:
+    // Monte o objeto de salvamento contendo apenas as 4 colunas reais que existem nessa tabela:
+    // id, email, status_assinatura, data_limite
+    console.log(`Sincronizando dados na tabela 'perfis' para o ID: ${userId}`);
+    const { error: profileError } = await supabaseAdmin
+      .from('perfis')
+      .upsert({
         id: userId,
         email: finalEmail,
-        nome_completo: finalName || finalEmail.split('@')[0],
-        whatsapp: finalPhone,
-        concurso_id: defaultConcursoId,
-        updated_at: new Date().toISOString()
-      },
-      // Tentativa 2: Nome do campo "concurso" alternativo (concurso)
-      {
-        id: userId,
-        email: finalEmail,
-        nome_completo: finalName || finalEmail.split('@')[0],
-        whatsapp: finalPhone,
-        concurso: defaultConcursoId,
-        updated_at: new Date().toISOString()
-      },
-      // Tentativa 3: Básico com nome_completo e whatsapp (Removendo colunas de concurso caso causem erro 500)
-      {
-        id: userId,
-        email: finalEmail,
-        nome_completo: finalName || finalEmail.split('@')[0],
-        whatsapp: finalPhone,
-        updated_at: new Date().toISOString()
-      },
-      // Tentativa 4: Básico com nome e whatsapp
-      {
-        id: userId,
-        email: finalEmail,
-        nome: finalName || finalEmail.split('@')[0],
-        whatsapp: finalPhone,
-        updated_at: new Date().toISOString()
-      },
-      // Tentativa 5: Mínimo Absoluto
-      {
-        id: userId,
-        email: finalEmail
-      }
-    ];
+        status_assinatura: true,
+        data_limite: '2027-12-31'
+      }, { onConflict: 'id' });
 
-    let upsertWorked = false;
-    let lastUpsertError = null;
-
-    for (let i = 0; i < payloads.length; i++) {
-      const payload = payloads[i];
-      console.log(`Tentativa de sincronização de perfil (Tentativa ${i + 1}/${payloads.length}) com chaves: ${Object.keys(payload).join(', ')}`);
-      
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .upsert(payload, { onConflict: 'id' });
-
-      if (!profileError) {
-        console.log(`Sucesso absoluto na salvaguarda do perfil (Tentativa ${i + 1})!`);
-        upsertWorked = true;
-        break;
-      } else {
-        console.warn(`Tentativa ${i + 1} de upsert falhou: ${profileError.message}`);
-        lastUpsertError = profileError;
-      }
-    }
-
-    if (!upsertWorked) {
-      console.error("Todas as tentativas de inserção no perfil profiles falharam:", lastUpsertError?.message);
-      return NextResponse.json({ error: "Erro ao gerar perfil de aluno: " + (lastUpsertError?.message || "Falha nas chaves de banco de dados") }, { status: 500 });
+    if (profileError) {
+      console.error("Erro ao salvar cadastro do aluno na tabela 'perfis':", profileError.message);
+      return NextResponse.json({ error: "Erro ao gerar perfil de aluno: " + profileError.message }, { status: 500 });
     }
 
     console.log(`Webhook processado com absoluto sucesso para o aluno: ${finalEmail} (${userId})`);
