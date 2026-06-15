@@ -85,34 +85,49 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
 
     const determineInitialConcurso = async () => {
       try {
-        // Buscar concurso_id no perfil
+        // Tenta ler localmente primeiro
+        const localSaved = typeof window !== 'undefined' ? localStorage.getItem(`selected_concurso_${user.id}`) : null;
+        if (localSaved && visibleConcursos.some(c => c.id === localSaved)) {
+          setSelectedConcursoId(localSaved);
+          return;
+        }
+
+        // Buscar concurso_pretendido no perfil de forma resiliente
         const { data: profile } = await supabase
           .from('profiles')
-          .select('concurso_id')
+          .select('concurso_pretendido')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (profile?.concurso_id) {
-          // Verifica se o concurso do perfil está na lista de visíveis
-          const isVisible = visibleConcursos.some(c => c.id === profile.concurso_id);
-          if (isVisible) {
-            setSelectedConcursoId(profile.concurso_id);
+        if (profile?.concurso_pretendido) {
+          const searchStr = profile.concurso_pretendido.toLowerCase().trim();
+          // Procura algum concurso correspondente por texto
+          const matched = visibleConcursos.find(c => 
+            c.nome.toLowerCase().includes(searchStr) || 
+            searchStr.includes(c.nome.toLowerCase())
+          );
+          if (matched) {
+            setSelectedConcursoId(matched.id);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(`selected_concurso_${user.id}`, matched.id);
+            }
             return;
           }
         }
 
         // Se não tiver ou não for visível, busca o "Pré-Edital Geral" entre os visíveis
-        const preEdital = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || visibleConcursos[0];
+        const preEdital = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital') || c.nome.toLowerCase().includes('geral')) || visibleConcursos[0];
         if (preEdital) {
           setSelectedConcursoId(preEdital.id);
-          // Salva no perfil para as próximas vezes
-          await supabase.from('profiles').update({ concurso_id: preEdital.id }).eq('id', user.id);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`selected_concurso_${user.id}`, preEdital.id);
+          }
         }
       } catch (err) {
         console.error('Erro ao determinar concurso inicial:', err);
         // Fallback de segurança
         if (visibleConcursos.length > 0) {
-          const fallback = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital geral')) || visibleConcursos[0];
+          const fallback = visibleConcursos.find(c => c.nome.toLowerCase().includes('pré-edital') || c.nome.toLowerCase().includes('geral')) || visibleConcursos[0];
           setSelectedConcursoId(fallback.id);
         }
       }
@@ -203,25 +218,41 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
       try {
         const isAdmin = user.email === ADMIN_EMAIL;
 
+        // Consulta a assinatura na tabela 'perfis'
+        const { data: perfisData } = await supabase
+          .from('perfis')
+          .select('status_assinatura, data_limite')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        // Consulta metadados de cadastro na tabela 'profiles' de forma resiliente
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('subscription_status, whatsapp')
+          .select('whatsapp')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (isAdmin) {
           setIsSubscriptionActive(true);
           return;
         }
 
-        if (!profileData || profileData.subscription_status !== 'active') {
+        if (!perfisData) {
+          setIsSubscriptionActive(false);
+          return;
+        }
+
+        const isSubscriptionActive = perfisData.status_assinatura === true;
+        const isNotExpired = perfisData.data_limite ? new Date(perfisData.data_limite) > new Date() : false;
+
+        if (!isSubscriptionActive || !isNotExpired) {
           setIsSubscriptionActive(false);
           return;
         }
         
         setIsSubscriptionActive(true);
 
-        if (!profileData.whatsapp) {
+        if (!profileData?.whatsapp) {
           router.push('/perfil');
           return;
         }
@@ -235,9 +266,8 @@ export default function DashboardClient({ initialMetas, totalTasks: initialTotal
 
   const handleConcursoChange = async (concursoId: string) => {
     setSelectedConcursoId(concursoId);
-    // Atualiza no perfil
-    if (user) {
-      await supabase.from('profiles').update({ concurso_id: concursoId }).eq('id', user.id);
+    if (user && typeof window !== 'undefined') {
+      localStorage.setItem(`selected_concurso_${user.id}`, concursoId);
     }
   };
 

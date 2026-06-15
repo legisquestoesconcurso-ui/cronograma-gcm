@@ -575,8 +575,16 @@ export default function AdminPage() {
         upData = pData || [];
       }
       
-      // Tenta achar o id do concurso no perfil do aluno. Fallback para o ativo ou o primeiro cadastrado
-      const studentConcursoId = student.concurso_id || selectedConcursoId || (concursos.length > 0 ? concursos[0].id : null);
+      // Tenta achar o id do concurso no perfil do aluno (utilizando concurso_id ou buscando por concurso_pretendido)
+      let studentConcursoId = student.concurso_id;
+      if (!studentConcursoId && student.concurso_pretendido) {
+        const search = student.concurso_pretendido.toLowerCase().trim();
+        const found = concursos.find(c => c.nome.toLowerCase().includes(search) || search.includes(c.nome.toLowerCase()));
+        if (found) studentConcursoId = found.id;
+      }
+      if (!studentConcursoId) {
+        studentConcursoId = selectedConcursoId || (concursos.length > 0 ? concursos[0].id : null);
+      }
       
       if (!studentConcursoId) {
         throw new Error('Nenhum edital/concurso correspondente encontrado.');
@@ -1215,7 +1223,13 @@ export default function AdminPage() {
                           return name.includes(query) || email.includes(query);
                         })
                         .map((student) => {
-                          const linkedConcurso = concursos.find(c => c.id === student.concurso_id);
+                          let studentConcursoId = student.concurso_id;
+                          if (!studentConcursoId && student.concurso_pretendido) {
+                            const search = student.concurso_pretendido.toLowerCase().trim();
+                            const found = concursos.find(c => c.nome.toLowerCase().includes(search) || search.includes(c.nome.toLowerCase()));
+                            if (found) studentConcursoId = found.id;
+                          }
+                          const linkedConcurso = concursos.find(c => c.id === studentConcursoId);
                           return (
                             <tr key={student.id} className="hover:bg-slate-950/40 transition-colors">
                               <td className="px-6 py-6">
@@ -1247,7 +1261,7 @@ export default function AdminPage() {
                                     ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
                                     : 'bg-slate-950 text-slate-500 border border-slate-850'
                                 }`}>
-                                  {linkedConcurso ? linkedConcurso.nome : 'Nenhum Selecionado'}
+                                  {linkedConcurso ? linkedConcurso.nome : (student.concurso_pretendido || 'Nenhum Selecionado')}
                                 </span>
                               </td>
                               <td className="px-6 py-6 text-right">

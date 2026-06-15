@@ -43,31 +43,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(JSON.parse(cached));
       }
 
-      const fetchPromise = supabase
+      // Consulta paralela e resiliente às duas tabelas ('perfis' para assinatura e 'profiles' para metadados)
+      const fetchPerfisPromise = supabase
+        .from('perfis')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const fetchProfilesPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('timeout')), 5000)
       );
 
       try {
-        const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-        if (error) throw error;
-        if (data) {
-          setProfile(data);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(`profile_${userId}`, JSON.stringify(data));
-          }
+        const perfisResult = await Promise.race([fetchPerfisPromise, timeoutPromise]) as any;
+        const profilesResult = await Promise.race([fetchProfilesPromise, timeoutPromise]) as any;
+
+        const perfisData = perfisResult?.data || {};
+        const profilesData = profilesResult?.data || {};
+
+        const mergedData = {
+          ...profilesData,
+          ...perfisData,
+          status_assinatura: perfisData?.status_assinatura === true,
+          data_limite: perfisData?.data_limite || '2027-12-31',
+          id: userId
+        };
+
+        setProfile(mergedData);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`profile_${userId}`, JSON.stringify(mergedData));
         }
       } catch (err) {
         // Silent fallback to cached or default profile
         if (!cached) {
           setProfile({
             status_assinatura: true,
-            data_limite: '2027-01-01',
+            data_limite: '2027-12-31',
             id: userId
           });
         }
