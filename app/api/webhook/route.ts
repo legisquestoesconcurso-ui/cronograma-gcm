@@ -123,34 +123,40 @@ export async function POST(request: Request) {
       console.log(`Aluno ${finalEmail} já existe na tabela de perfis (profiles) com o ID: ${userId}`);
     } else {
       // Tentar criar a conta de Autenticação com o e-mail do aluno
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: finalEmail,
-        password: password,
-        email_confirm: true,
-        user_metadata: { cpf: cleanedCpf, nome: finalName }
-      });
+      try {
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email: finalEmail,
+          password: password,
+          email_confirm: true,
+          user_metadata: { cpf: cleanedCpf, nome: finalName }
+        });
 
-      if (authError) {
-        // Se já houver cadastro no Auth, recuperamos o Id dele para ativar ou atualizar seu perfil
-        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
-          console.log(`Aluno ${finalEmail} já possui cadastro no Auth. Buscando ID...`);
+        if (authError) {
+          throw authError;
+        }
+        userId = authData.user?.id || "";
+      } catch (authErr: any) {
+        console.log(`Criação direta falhou ou usuário já cadastrado: ${authErr?.message || authErr}. Buscando ID por e-mail...`);
+        
+        try {
+          // Busca resiliente do usuário listando no Auth como fallback absoluto
           const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-          
           if (!listError && userList?.users) {
             const existingUser = userList.users.find(u => u.email?.toLowerCase() === finalEmail.toLowerCase());
             if (existingUser) {
               userId = existingUser.id;
+              console.log(`Usuário encontrado com ID resgatado: ${userId}`);
             }
           }
+        } catch (listErr: any) {
+          console.error("Falha ao tentar listar usuários do Auth como fallback:", listErr.message);
         }
-        
-        // Se ainda assim não conseguirmos o userId, lançamos erro
+
+        // Se após o fallback ainda não tivermos o ID, lançamos erro explicativo
         if (!userId) {
-          console.error("Erro ao registrar novo aluno no Supabase Auth:", authError.message);
-          return NextResponse.json({ error: authError.message }, { status: 500 });
+          console.error("Erro crítico: falha no Auth de cadastro e impossível recuperar ID existente.");
+          return NextResponse.json({ error: authErr?.message || "Erro no Auth e usuário não retornado" }, { status: 500 });
         }
-      } else {
-        userId = authData.user?.id || "";
       }
     }
 
